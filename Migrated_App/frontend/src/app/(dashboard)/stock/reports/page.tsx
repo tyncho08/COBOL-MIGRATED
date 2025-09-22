@@ -151,7 +151,7 @@ const getReportTypeBadge = (type: string) => {
     case 'STOCK_AGING':
       return <Badge variant="warning">Aging</Badge>
     case 'SLOW_MOVING':
-      return <Badge variant="secondary">Slow Moving</Badge>
+      return <Badge variant="default">Slow Moving</Badge>
     case 'REORDER_LEVELS':
       return <Badge variant="danger">Reorder</Badge>
     case 'ABC_ANALYSIS':
@@ -240,7 +240,7 @@ export default function StockReportsPage() {
       header: 'Format',
       cell: ({ row }) => {
         const format = row.getValue('output_format') as string
-        return <Badge variant="outline">{format}</Badge>
+        return <Badge variant="default">{format}</Badge>
       },
     },
     {
@@ -378,12 +378,20 @@ export default function StockReportsPage() {
     {
       name: 'include_zero_stock',
       label: 'Include Zero Stock Items',
-      type: 'checkbox',
+      type: 'select',
+      options: [
+        { value: 'false', label: 'No' },
+        { value: 'true', label: 'Yes' },
+      ],
     },
     {
       name: 'include_inactive',
       label: 'Include Inactive Items',
-      type: 'checkbox',
+      type: 'select',
+      options: [
+        { value: 'false', label: 'No' },
+        { value: 'true', label: 'Yes' },
+      ],
     },
     {
       name: 'output_format',

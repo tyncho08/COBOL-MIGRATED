@@ -201,9 +201,9 @@ const getActionTypeBadge = (actionType: string) => {
     case 'DELETE':
       return <Badge variant="danger">Delete</Badge>
     case 'LOGIN':
-      return <Badge variant="secondary">Login</Badge>
+      return <Badge variant="default">Login</Badge>
     case 'LOGOUT':
-      return <Badge variant="secondary">Logout</Badge>
+      return <Badge variant="default">Logout</Badge>
     case 'EXPORT':
       return <Badge variant="warning">Export</Badge>
     case 'POST':
@@ -237,7 +237,7 @@ const getSeverityBadge = (severity: string) => {
     case 'INFO':
       return <Badge variant="info">Info</Badge>
     case 'DEBUG':
-      return <Badge variant="secondary">Debug</Badge>
+      return <Badge variant="default">Debug</Badge>
     default:
       return <Badge variant="default">{severity}</Badge>
   }

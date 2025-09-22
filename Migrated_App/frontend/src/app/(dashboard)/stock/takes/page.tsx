@@ -132,7 +132,7 @@ const getTakeTypeBadge = (type: string) => {
     case 'CYCLE':
       return <Badge variant="default">Cycle Count</Badge>
     case 'SPOT':
-      return <Badge variant="secondary">Spot Check</Badge>
+      return <Badge variant="default">Spot Check</Badge>
     default:
       return <Badge variant="default">{type}</Badge>
   }

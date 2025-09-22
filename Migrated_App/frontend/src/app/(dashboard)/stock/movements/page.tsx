@@ -153,7 +153,7 @@ const getMovementTypeBadge = (type: string) => {
     case 'TRANSFER':
       return <Badge variant="default">Transfer</Badge>
     case 'RETURN':
-      return <Badge variant="secondary">Return</Badge>
+      return <Badge variant="default">Return</Badge>
     default:
       return <Badge variant="default">{type}</Badge>
   }
@@ -543,12 +543,12 @@ export default function StockMovementsPage() {
                 <h3 className="font-medium text-gray-900">Location Details</h3>
                 <div className="mt-2 flex items-center space-x-2">
                   <span className="text-sm text-gray-500">From:</span>
-                  <Badge variant="outline">{selectedMovement.location_from}</Badge>
+                  <Badge variant="default">{selectedMovement.location_from}</Badge>
                   {selectedMovement.location_to && (
                     <>
                       <ArrowsRightLeftIcon className="h-4 w-4 text-gray-400" />
                       <span className="text-sm text-gray-500">To:</span>
-                      <Badge variant="outline">{selectedMovement.location_to}</Badge>
+                      <Badge variant="default">{selectedMovement.location_to}</Badge>
                     </>
                   )}
                 </div>

@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DataTable } from '@/components/business/data-table'
 import { PageHeader } from '@/components/business/page-header'
 import { FormBuilder, FormField } from '@/components/business/form-builder'
@@ -17,41 +18,14 @@ import {
   PhoneIcon,
   BuildingStorefrontIcon,
   DocumentTextIcon,
-  CreditCardIcon 
+  CreditCardIcon,
+  ChartBarIcon,
+  TrashIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
-
-// Types
-interface Supplier {
-  id: number
-  supplier_code: string
-  supplier_name: string
-  contact_person?: string
-  address_line1?: string
-  address_line2?: string
-  city?: string
-  state?: string
-  postal_code?: string
-  country?: string
-  phone?: string
-  fax?: string
-  email?: string
-  website?: string
-  tax_number?: string
-  payment_terms: string
-  currency_code: string
-  credit_limit: number
-  balance: number
-  ytd_purchases: number
-  is_active: boolean
-  on_hold: boolean
-  supplier_type: string
-  account_number?: string
-  bank_details?: string
-  notes?: string
-  created_date: string
-  last_purchase_date?: string
-}
+import { Supplier, suppliersApi } from '@/lib/api/suppliers'
+import toast from 'react-hot-toast'
+import { useAuth } from '@/lib/auth/context'
 
 // Schema
 const supplierSchema = z.object({
@@ -71,107 +45,26 @@ const supplierSchema = z.object({
   tax_number: z.string().optional(),
   payment_terms: z.string().min(1, 'Payment terms are required'),
   currency_code: z.string().min(1, 'Currency is required'),
-  credit_limit: z.string().optional(),
+  bank_account: z.string().optional(),
+  bank_name: z.string().optional(),
+  bank_branch: z.string().optional(),
+  swift_code: z.string().optional(),
+  discount_percent: z.string().optional(),
   supplier_type: z.string().min(1, 'Supplier type is required'),
-  account_number: z.string().optional(),
-  bank_details: z.string().optional(),
+  category: z.string().optional(),
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockSuppliers: Supplier[] = [
-  {
-    id: 1,
-    supplier_code: 'SUPP001',
-    supplier_name: 'ABC Supplies Ltd',
-    contact_person: 'John Smith',
-    address_line1: '123 Business Street',
-    address_line2: 'Industrial Estate',
-    city: 'New York',
-    state: 'NY',
-    postal_code: '10001',
-    country: 'USA',
-    phone: '+1 555-0123',
-    fax: '+1 555-0124',
-    email: 'orders@abc-supplies.com',
-    website: 'www.abc-supplies.com',
-    tax_number: '12-3456789',
-    payment_terms: '30 DAYS',
-    currency_code: 'USD',
-    credit_limit: 50000.00,
-    balance: 15000.00,
-    ytd_purchases: 125000.00,
-    is_active: true,
-    on_hold: false,
-    supplier_type: 'TRADE',
-    account_number: 'ABC-001',
-    bank_details: 'Bank of America - 123456789',
-    created_date: '2024-01-01',
-    last_purchase_date: '2024-01-15',
-  },
-  {
-    id: 2,
-    supplier_code: 'SUPP002',
-    supplier_name: 'Tech Components Inc',
-    contact_person: 'Jane Doe',
-    address_line1: '456 Technology Way',
-    city: 'San Francisco',
-    state: 'CA',
-    postal_code: '94105',
-    country: 'USA',
-    phone: '+1 555-0456',
-    email: 'purchasing@tech-components.com',
-    website: 'www.tech-components.com',
-    tax_number: '98-7654321',
-    payment_terms: '60 DAYS',
-    currency_code: 'USD',
-    credit_limit: 75000.00,
-    balance: 8500.00,
-    ytd_purchases: 85000.00,
-    is_active: true,
-    on_hold: false,
-    supplier_type: 'MANUFACTURER',
-    account_number: 'TC-002',
-    created_date: '2024-01-01',
-    last_purchase_date: '2024-01-12',
-  },
-  {
-    id: 3,
-    supplier_code: 'SUPP003',
-    supplier_name: 'Office Supplies Co',
-    contact_person: 'Bob Johnson',
-    address_line1: '789 Office Park',
-    city: 'Chicago',
-    state: 'IL',
-    postal_code: '60601',
-    country: 'USA',
-    phone: '+1 555-0789',
-    email: 'sales@office-supplies.com',
-    tax_number: '55-9876543',
-    payment_terms: '30 DAYS',
-    currency_code: 'USD',
-    credit_limit: 25000.00,
-    balance: 3200.00,
-    ytd_purchases: 45000.00,
-    is_active: true,
-    on_hold: true,
-    supplier_type: 'TRADE',
-    notes: 'Payment issues - on hold pending resolution',
-    created_date: '2024-01-01',
-    last_purchase_date: '2024-01-10',
-  },
-]
-
 const getSupplierTypeBadge = (type: string) => {
   switch (type) {
-    case 'TRADE':
-      return <Badge variant="info">Trade</Badge>
     case 'MANUFACTURER':
-      return <Badge variant="success">Manufacturer</Badge>
+      return <Badge variant="info">Manufacturer</Badge>
+    case 'DISTRIBUTOR':
+      return <Badge variant="success">Distributor</Badge>
+    case 'WHOLESALER':
+      return <Badge variant="warning">Wholesaler</Badge>
     case 'SERVICE':
-      return <Badge variant="warning">Service</Badge>
-    case 'UTILITIES':
-      return <Badge variant="secondary">Utilities</Badge>
+      return <Badge variant="default">Service</Badge>
     default:
       return <Badge variant="default">{type}</Badge>
   }
@@ -181,20 +74,78 @@ const getStatusBadge = (isActive: boolean, onHold: boolean) => {
   if (onHold) {
     return <Badge variant="danger">On Hold</Badge>
   }
-  if (isActive) {
-    return <Badge variant="success">Active</Badge>
+  if (!isActive) {
+    return <Badge variant="default">Inactive</Badge>
   }
-  return <Badge variant="default">Inactive</Badge>
+  return <Badge variant="success">Active</Badge>
 }
 
 export default function SuppliersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
 
-  const { data: suppliers, isLoading } = useQuery({
+  const queryClient = useQueryClient()
+  const { canEdit, canDelete } = useAuth()
+
+  // Query for suppliers
+  const { data: suppliers, isLoading, error } = useQuery({
     queryKey: ['suppliers'],
-    queryFn: () => Promise.resolve(mockSuppliers),
+    queryFn: () => suppliersApi.getAll(),
+  })
+
+  // Mutation for creating supplier
+  const createMutation = useMutation({
+    mutationFn: suppliersApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      toast.success('Supplier created successfully')
+      setShowCreateModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to create supplier')
+    },
+  })
+
+  // Mutation for updating supplier
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Supplier> }) =>
+      suppliersApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      toast.success('Supplier updated successfully')
+      setShowEditModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update supplier')
+    },
+  })
+
+  // Mutation for deleting supplier
+  const deleteMutation = useMutation({
+    mutationFn: suppliersApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      toast.success('Supplier deleted successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete supplier')
+    },
+  })
+
+  // Mutation for toggling hold status
+  const toggleHoldMutation = useMutation({
+    mutationFn: ({ id, onHold }: { id: number; onHold: boolean }) =>
+      suppliersApi.toggleHold(id, onHold),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['suppliers'] })
+      toast.success('Supplier hold status updated')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update hold status')
+    },
   })
 
   const columns: ColumnDef<Supplier>[] = [
@@ -235,28 +186,22 @@ export default function SuppliersPage() {
       header: 'Currency',
     },
     {
-      accessorKey: 'credit_limit',
-      header: 'Credit Limit',
-      cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('credit_limit'))
-        return new Intl.NumberFormat('en-US', {
-          style: 'currency',
-          currency: 'USD',
-        }).format(amount)
-      },
-    },
-    {
       accessorKey: 'balance',
       header: 'Balance',
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('balance'))
+        const amount = parseFloat(row.getValue('balance') || '0')
+        const isCredit = amount < 0
+        
         return (
-          <span className={amount > 0 ? 'text-red-600' : amount < 0 ? 'text-green-600' : ''}>
+          <span className={
+            isCredit ? 'text-red-600 font-bold' : 
+            amount > 0 ? 'text-green-600' : ''
+          }>
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'USD',
             }).format(Math.abs(amount))}
-            {amount < 0 && ' CR'}
+            {isCredit && ' DR'}
           </span>
         )
       },
@@ -265,11 +210,19 @@ export default function SuppliersPage() {
       accessorKey: 'ytd_purchases',
       header: 'YTD Purchases',
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('ytd_purchases'))
+        const amount = parseFloat(row.getValue('ytd_purchases') || '0')
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: 'USD',
         }).format(amount)
+      },
+    },
+    {
+      accessorKey: 'discount_percent',
+      header: 'Discount %',
+      cell: ({ row }) => {
+        const percent = parseFloat(row.getValue('discount_percent') || '0')
+        return `${percent.toFixed(1)}%`
       },
     },
     {
@@ -284,7 +237,7 @@ export default function SuppliersPage() {
       header: 'Status',
       cell: ({ row }) => {
         const supplier = row.original
-        return getStatusBadge(supplier.is_active, supplier.on_hold)
+        return getStatusBadge(supplier.is_active || true, supplier.on_hold || false)
       },
     },
     {
@@ -316,27 +269,60 @@ export default function SuppliersPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view supplier details
+                toast('Supplier details view coming soon')
               }}
+              title="View Details"
             >
               <EyeIcon className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle supplier statement
+              onClick={async () => {
+                try {
+                  await suppliersApi.getStatement(supplier.id!)
+                  toast.success('Statement generated')
+                } catch (error) {
+                  toast.error('Failed to generate statement')
+                }
               }}
+              title="Generate Statement"
             >
               <DocumentTextIcon className="h-4 w-4" />
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await suppliersApi.getPurchaseAnalysis(supplier.id!)
+                  toast.success('Purchase analysis generated')
+                } catch (error) {
+                  toast.error('Failed to generate purchase analysis')
+                }
+              }}
+              title="Purchase Analysis"
+            >
+              <ChartBarIcon className="h-4 w-4" />
+            </Button>
+            {canEdit('master') && (
+              <Button
+                size="sm"
+                variant={supplier.on_hold ? "secondary" : "outline"}
+                onClick={() => handleToggleHold(supplier)}
+                title={supplier.on_hold ? "Remove Hold" : "Place on Hold"}
+              >
+                {supplier.on_hold ? "On Hold" : "Active"}
+              </Button>
+            )}
             {supplier.email && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  // Handle email supplier
+                  window.location.href = `mailto:${supplier.email}`
                 }}
+                title="Send Email"
               >
                 <EnvelopeIcon className="h-4 w-4" />
               </Button>
@@ -346,10 +332,22 @@ export default function SuppliersPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  // Handle call supplier
+                  window.location.href = `tel:${supplier.phone}`
                 }}
+                title="Call Supplier"
               >
                 <PhoneIcon className="h-4 w-4" />
+              </Button>
+            )}
+            {canDelete('master') && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDeleteSupplier(supplier)}
+                className="text-red-600 hover:text-red-700"
+                title="Delete Supplier"
+              >
+                <TrashIcon className="h-4 w-4" />
               </Button>
             )}
           </div>
@@ -411,6 +409,8 @@ export default function SuppliersPage() {
         { value: 'GBR', label: 'United Kingdom' },
         { value: 'DEU', label: 'Germany' },
         { value: 'FRA', label: 'France' },
+        { value: 'CHN', label: 'China' },
+        { value: 'IND', label: 'India' },
       ],
     },
     {
@@ -446,7 +446,9 @@ export default function SuppliersPage() {
       options: [
         { value: '7 DAYS', label: '7 Days' },
         { value: '14 DAYS', label: '14 Days' },
+        { value: '15 DAYS', label: '15 Days' },
         { value: '30 DAYS', label: '30 Days' },
+        { value: '45 DAYS', label: '45 Days' },
         { value: '60 DAYS', label: '60 Days' },
         { value: '90 DAYS', label: '90 Days' },
         { value: 'COD', label: 'Cash on Delivery' },
@@ -463,11 +465,33 @@ export default function SuppliersPage() {
         { value: 'EUR', label: 'Euro' },
         { value: 'GBP', label: 'British Pound' },
         { value: 'CAD', label: 'Canadian Dollar' },
+        { value: 'CNY', label: 'Chinese Yuan' },
+        { value: 'INR', label: 'Indian Rupee' },
       ],
     },
     {
-      name: 'credit_limit',
-      label: 'Credit Limit',
+      name: 'bank_account',
+      label: 'Bank Account Number',
+      type: 'text',
+    },
+    {
+      name: 'bank_name',
+      label: 'Bank Name',
+      type: 'text',
+    },
+    {
+      name: 'bank_branch',
+      label: 'Bank Branch',
+      type: 'text',
+    },
+    {
+      name: 'swift_code',
+      label: 'SWIFT Code',
+      type: 'text',
+    },
+    {
+      name: 'discount_percent',
+      label: 'Discount Percentage',
       type: 'number',
     },
     {
@@ -476,21 +500,26 @@ export default function SuppliersPage() {
       type: 'select',
       required: true,
       options: [
-        { value: 'TRADE', label: 'Trade Supplier' },
         { value: 'MANUFACTURER', label: 'Manufacturer' },
+        { value: 'DISTRIBUTOR', label: 'Distributor' },
+        { value: 'WHOLESALER', label: 'Wholesaler' },
         { value: 'SERVICE', label: 'Service Provider' },
-        { value: 'UTILITIES', label: 'Utilities' },
+        { value: 'OTHER', label: 'Other' },
       ],
     },
     {
-      name: 'account_number',
-      label: 'Account Number',
-      type: 'text',
-    },
-    {
-      name: 'bank_details',
-      label: 'Bank Details',
-      type: 'text',
+      name: 'category',
+      label: 'Category',
+      type: 'select',
+      options: [
+        { value: '', label: 'None' },
+        { value: 'RAW_MATERIALS', label: 'Raw Materials' },
+        { value: 'COMPONENTS', label: 'Components' },
+        { value: 'FINISHED_GOODS', label: 'Finished Goods' },
+        { value: 'SERVICES', label: 'Services' },
+        { value: 'UTILITIES', label: 'Utilities' },
+        { value: 'OTHER', label: 'Other' },
+      ],
     },
     {
       name: 'notes',
@@ -500,17 +529,66 @@ export default function SuppliersPage() {
   ]
 
   const handleCreateSupplier = (data: any) => {
-    console.log('Creating supplier:', data)
-    setShowCreateModal(false)
+    const supplierData = {
+      ...data,
+      discount_percent: parseFloat(data.discount_percent || '0'),
+      is_active: true,
+      on_hold: false,
+    }
+    createMutation.mutate(supplierData)
   }
 
   const handleEditSupplier = (data: any) => {
-    console.log('Editing supplier:', data)
-    setShowEditModal(false)
+    if (selectedSupplier?.id) {
+      const supplierData = {
+        ...data,
+        discount_percent: parseFloat(data.discount_percent || '0'),
+      }
+      updateMutation.mutate({ id: selectedSupplier.id, data: supplierData })
+    }
+  }
+
+  const handleDeleteSupplier = (supplier: Supplier) => {
+    setSupplierToDelete(supplier)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDelete = () => {
+    if (supplierToDelete?.id) {
+      deleteMutation.mutate(supplierToDelete.id)
+      setShowDeleteDialog(false)
+      setSupplierToDelete(null)
+    }
+  }
+
+  const handleToggleHold = (supplier: Supplier) => {
+    if (supplier.id) {
+      toggleHoldMutation.mutate({ id: supplier.id, onHold: !supplier.on_hold })
+    }
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading suppliers...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load suppliers</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['suppliers'] })}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -526,8 +604,13 @@ export default function SuppliersPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle supplier report
+              onClick={async () => {
+                try {
+                  await suppliersApi.getReport()
+                  toast.success('Supplier report generated')
+                } catch (error) {
+                  toast.error('Failed to generate supplier report')
+                }
               }}
             >
               <BuildingStorefrontIcon className="h-4 w-4 mr-2" />
@@ -535,12 +618,26 @@ export default function SuppliersPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle aged creditors
+              onClick={async () => {
+                try {
+                  await suppliersApi.getAgedCreditors()
+                  toast.success('Aged creditors report generated')
+                } catch (error) {
+                  toast.error('Failed to generate aged creditors report')
+                }
               }}
             >
               <CreditCardIcon className="h-4 w-4 mr-2" />
               Aged Creditors
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={() => {
+                toast('Purchase analysis report coming soon')
+              }}
+            >
+              <ChartBarIcon className="h-4 w-4 mr-2" />
+              Purchase Analysis
             </Button>
             <Button onClick={() => setShowCreateModal(true)}>
               <PlusIcon className="h-4 w-4 mr-2" />
@@ -569,6 +666,7 @@ export default function SuppliersPage() {
           onCancel={() => setShowCreateModal(false)}
           schema={supplierSchema}
           submitLabel="Create Supplier"
+          loading={createMutation.isPending}
         />
       </Modal>
 
@@ -586,6 +684,7 @@ export default function SuppliersPage() {
             onCancel={() => setShowEditModal(false)}
             schema={supplierSchema}
             submitLabel="Update Supplier"
+            loading={updateMutation.isPending}
             defaultValues={{
               supplier_code: selectedSupplier.supplier_code,
               supplier_name: selectedSupplier.supplier_name,
@@ -603,15 +702,33 @@ export default function SuppliersPage() {
               tax_number: selectedSupplier.tax_number,
               payment_terms: selectedSupplier.payment_terms,
               currency_code: selectedSupplier.currency_code,
-              credit_limit: selectedSupplier.credit_limit.toString(),
+              bank_account: selectedSupplier.bank_account,
+              bank_name: selectedSupplier.bank_name,
+              bank_branch: selectedSupplier.bank_branch,
+              swift_code: selectedSupplier.swift_code,
+              discount_percent: selectedSupplier.discount_percent?.toString(),
               supplier_type: selectedSupplier.supplier_type,
-              account_number: selectedSupplier.account_number,
-              bank_details: selectedSupplier.bank_details,
+              category: selectedSupplier.category,
               notes: selectedSupplier.notes,
             }}
           />
         )}
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false)
+          setSupplierToDelete(null)
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Supplier"
+        message={`Are you sure you want to delete ${supplierToDelete?.supplier_name}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
     </div>
   )
 }

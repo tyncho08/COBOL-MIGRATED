@@ -184,7 +184,7 @@ const getReportTypeBadge = (type: string) => {
     case 'INCOME_STATEMENT':
       return <Badge variant="warning">Income Statement</Badge>
     case 'CASH_FLOW':
-      return <Badge variant="secondary">Cash Flow</Badge>
+      return <Badge variant="default">Cash Flow</Badge>
     case 'GENERAL_LEDGER':
       return <Badge variant="default">General Ledger</Badge>
     case 'BUDGET_VARIANCE':
@@ -205,7 +205,7 @@ const getCategoryBadge = (category: string) => {
     case 'MANAGEMENT_REPORTS':
       return <Badge variant="warning" className="text-xs">Management</Badge>
     case 'TRANSACTION_REPORTS':
-      return <Badge variant="secondary" className="text-xs">Transaction</Badge>
+      return <Badge variant="default" className="text-xs">Transaction</Badge>
     case 'REGULATORY':
       return <Badge variant="danger" className="text-xs">Regulatory</Badge>
     default:
@@ -300,7 +300,7 @@ export default function FinancialReportsPage() {
       header: 'Format',
       cell: ({ row }) => {
         const format = row.getValue('output_format') as string
-        return <Badge variant="outline">{format}</Badge>
+        return <Badge variant="default">{format}</Badge>
       },
     },
     {
@@ -456,17 +456,29 @@ export default function FinancialReportsPage() {
     {
       name: 'include_budget',
       label: 'Include Budget Comparison',
-      type: 'checkbox',
+      type: 'select',
+      options: [
+        { value: 'false', label: 'No' },
+        { value: 'true', label: 'Yes' },
+      ],
     },
     {
       name: 'include_prior_year',
       label: 'Include Prior Year Comparison',
-      type: 'checkbox',
+      type: 'select',
+      options: [
+        { value: 'false', label: 'No' },
+        { value: 'true', label: 'Yes' },
+      ],
     },
     {
       name: 'consolidate_entities',
       label: 'Consolidate Entities',
-      type: 'checkbox',
+      type: 'select',
+      options: [
+        { value: 'false', label: 'No' },
+        { value: 'true', label: 'Yes' },
+      ],
     },
     {
       name: 'output_format',

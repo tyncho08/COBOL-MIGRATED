@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { DataTable } from '@/components/business/data-table'
 import { PageHeader } from '@/components/business/page-header'
 import { FormBuilder, FormField } from '@/components/business/form-builder'
@@ -18,42 +19,13 @@ import {
   UsersIcon,
   DocumentTextIcon,
   CreditCardIcon,
-  ChartBarIcon 
+  ChartBarIcon,
+  TrashIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
-
-// Types
-interface Customer {
-  id: number
-  customer_code: string
-  customer_name: string
-  contact_person?: string
-  address_line1?: string
-  address_line2?: string
-  city?: string
-  state?: string
-  postal_code?: string
-  country?: string
-  phone?: string
-  fax?: string
-  email?: string
-  website?: string
-  tax_number?: string
-  payment_terms: string
-  currency_code: string
-  credit_limit: number
-  balance: number
-  ytd_sales: number
-  discount_percent: number
-  is_active: boolean
-  on_hold: boolean
-  customer_type: string
-  sales_rep?: string
-  price_list?: string
-  notes?: string
-  created_date: string
-  last_sale_date?: string
-}
+import { Customer, customersApi } from '@/lib/api/customers'
+import toast from 'react-hot-toast'
+import { useAuth } from '@/lib/auth/context'
 
 // Schema
 const customerSchema = z.object({
@@ -81,122 +53,6 @@ const customerSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockCustomers: Customer[] = [
-  {
-    id: 1,
-    customer_code: 'CUST001',
-    customer_name: 'ABC Corporation',
-    contact_person: 'John Smith',
-    address_line1: '123 Business Avenue',
-    address_line2: 'Suite 100',
-    city: 'New York',
-    state: 'NY',
-    postal_code: '10001',
-    country: 'USA',
-    phone: '+1 555-0123',
-    fax: '+1 555-0124',
-    email: 'accounts@abc-corp.com',
-    website: 'www.abc-corp.com',
-    tax_number: '12-3456789',
-    payment_terms: '30 DAYS',
-    currency_code: 'USD',
-    credit_limit: 100000.00,
-    balance: 25000.00,
-    ytd_sales: 350000.00,
-    discount_percent: 5.0,
-    is_active: true,
-    on_hold: false,
-    customer_type: 'CORPORATE',
-    sales_rep: 'Alice Johnson',
-    price_list: 'STANDARD',
-    created_date: '2024-01-01',
-    last_sale_date: '2024-01-15',
-  },
-  {
-    id: 2,
-    customer_code: 'CUST002',
-    customer_name: 'XYZ Ltd',
-    contact_person: 'Jane Doe',
-    address_line1: '456 Commerce Street',
-    city: 'Los Angeles',
-    state: 'CA',
-    postal_code: '90210',
-    country: 'USA',
-    phone: '+1 555-0456',
-    email: 'finance@xyz-ltd.com',
-    tax_number: '98-7654321',
-    payment_terms: '60 DAYS',
-    currency_code: 'USD',
-    credit_limit: 75000.00,
-    balance: 12500.00,
-    ytd_sales: 180000.00,
-    discount_percent: 3.0,
-    is_active: true,
-    on_hold: false,
-    customer_type: 'BUSINESS',
-    sales_rep: 'Bob Wilson',
-    price_list: 'STANDARD',
-    created_date: '2024-01-01',
-    last_sale_date: '2024-01-12',
-  },
-  {
-    id: 3,
-    customer_code: 'CUST003',
-    customer_name: 'Tech Solutions Inc',
-    contact_person: 'Bob Johnson',
-    address_line1: '789 Technology Way',
-    city: 'San Francisco',
-    state: 'CA',
-    postal_code: '94105',
-    country: 'USA',
-    phone: '+1 555-0789',
-    email: 'orders@techsolutions.com',
-    tax_number: '55-9876543',
-    payment_terms: '15 DAYS',
-    currency_code: 'USD',
-    credit_limit: 50000.00,
-    balance: -5000.00, // Credit balance
-    ytd_sales: 95000.00,
-    discount_percent: 10.0,
-    is_active: true,
-    on_hold: false,
-    customer_type: 'CORPORATE',
-    sales_rep: 'Charlie Brown',
-    price_list: 'VOLUME',
-    notes: 'VIP customer - expedited shipping',
-    created_date: '2024-01-01',
-    last_sale_date: '2024-01-14',
-  },
-  {
-    id: 4,
-    customer_code: 'CUST004',
-    customer_name: 'Slow Payer Ltd',
-    contact_person: 'Mike Wilson',
-    address_line1: '321 Payment Street',
-    city: 'Chicago',
-    state: 'IL',
-    postal_code: '60601',
-    country: 'USA',
-    phone: '+1 555-0999',
-    email: 'mike@slowpayer.com',
-    tax_number: '77-1234567',
-    payment_terms: '30 DAYS',
-    currency_code: 'USD',
-    credit_limit: 25000.00,
-    balance: 35000.00, // Over credit limit
-    ytd_sales: 65000.00,
-    discount_percent: 0.0,
-    is_active: true,
-    on_hold: true,
-    customer_type: 'BUSINESS',
-    sales_rep: 'Alice Johnson',
-    price_list: 'STANDARD',
-    notes: 'Payment issues - on hold until balance reduced',
-    created_date: '2024-01-01',
-    last_sale_date: '2024-01-08',
-  },
-]
 
 const getCustomerTypeBadge = (type: string) => {
   switch (type) {
@@ -207,7 +63,7 @@ const getCustomerTypeBadge = (type: string) => {
     case 'INDIVIDUAL':
       return <Badge variant="warning">Individual</Badge>
     case 'GOVERNMENT':
-      return <Badge variant="secondary">Government</Badge>
+      return <Badge variant="default">Government</Badge>
     default:
       return <Badge variant="default">{type}</Badge>
   }
@@ -229,11 +85,69 @@ const getStatusBadge = (isActive: boolean, onHold: boolean, balance: number, cre
 export default function CustomersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
 
-  const { data: customers, isLoading } = useQuery({
+  const queryClient = useQueryClient()
+  const { canEdit, canDelete } = useAuth()
+
+  // Query for customers
+  const { data: customers, isLoading, error } = useQuery({
     queryKey: ['customers'],
-    queryFn: () => Promise.resolve(mockCustomers),
+    queryFn: () => customersApi.getAll(),
+  })
+
+  // Mutation for creating customer
+  const createMutation = useMutation({
+    mutationFn: customersApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      toast.success('Customer created successfully')
+      setShowCreateModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to create customer')
+    },
+  })
+
+  // Mutation for updating customer
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Customer> }) =>
+      customersApi.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      toast.success('Customer updated successfully')
+      setShowEditModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update customer')
+    },
+  })
+
+  // Mutation for deleting customer
+  const deleteMutation = useMutation({
+    mutationFn: customersApi.delete,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      toast.success('Customer deleted successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete customer')
+    },
+  })
+
+  // Mutation for toggling hold status
+  const toggleHoldMutation = useMutation({
+    mutationFn: ({ id, onHold }: { id: number; onHold: boolean }) =>
+      customersApi.toggleHold(id, onHold),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      toast.success('Customer hold status updated')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update hold status')
+    },
   })
 
   const columns: ColumnDef<Customer>[] = [
@@ -343,7 +257,7 @@ export default function CustomersPage() {
       header: 'Status',
       cell: ({ row }) => {
         const customer = row.original
-        return getStatusBadge(customer.is_active, customer.on_hold, customer.balance, customer.credit_limit)
+        return getStatusBadge(customer.is_active || true, customer.on_hold || false, customer.balance || 0, customer.credit_limit || 0)
       },
     },
     {
@@ -375,36 +289,60 @@ export default function CustomersPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view customer details
+                toast('Customer details view coming soon')
               }}
+              title="View Details"
             >
               <EyeIcon className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle customer statement
+              onClick={async () => {
+                try {
+                  await customersApi.getStatement(customer.id!)
+                  toast.success('Statement generated')
+                } catch (error) {
+                  toast.error('Failed to generate statement')
+                }
               }}
+              title="Generate Statement"
             >
               <DocumentTextIcon className="h-4 w-4" />
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle sales analysis
+              onClick={async () => {
+                try {
+                  await customersApi.getSalesAnalysis(customer.id!)
+                  toast.success('Sales analysis generated')
+                } catch (error) {
+                  toast.error('Failed to generate sales analysis')
+                }
               }}
+              title="Sales Analysis"
             >
               <ChartBarIcon className="h-4 w-4" />
             </Button>
+            {canEdit('master') && (
+              <Button
+                size="sm"
+                variant={customer.on_hold ? "secondary" : "outline"}
+                onClick={() => handleToggleHold(customer)}
+                title={customer.on_hold ? "Remove Hold" : "Place on Hold"}
+              >
+                {customer.on_hold ? "On Hold" : "Active"}
+              </Button>
+            )}
             {customer.email && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  // Handle email customer
+                  window.location.href = `mailto:${customer.email}`
                 }}
+                title="Send Email"
               >
                 <EnvelopeIcon className="h-4 w-4" />
               </Button>
@@ -414,10 +352,22 @@ export default function CustomersPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  // Handle call customer
+                  window.location.href = `tel:${customer.phone}`
                 }}
+                title="Call Customer"
               >
                 <PhoneIcon className="h-4 w-4" />
+              </Button>
+            )}
+            {canDelete('master') && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleDeleteCustomer(customer)}
+                className="text-red-600 hover:text-red-700"
+                title="Delete Customer"
+              >
+                <TrashIcon className="h-4 w-4" />
               </Button>
             )}
           </div>
@@ -588,17 +538,68 @@ export default function CustomersPage() {
   ]
 
   const handleCreateCustomer = (data: any) => {
-    console.log('Creating customer:', data)
-    setShowCreateModal(false)
+    const customerData = {
+      ...data,
+      credit_limit: parseFloat(data.credit_limit || '0'),
+      discount_percent: parseFloat(data.discount_percent || '0'),
+      is_active: true,
+      on_hold: false,
+    }
+    createMutation.mutate(customerData)
   }
 
   const handleEditCustomer = (data: any) => {
-    console.log('Editing customer:', data)
-    setShowEditModal(false)
+    if (selectedCustomer?.id) {
+      const customerData = {
+        ...data,
+        credit_limit: parseFloat(data.credit_limit || '0'),
+        discount_percent: parseFloat(data.discount_percent || '0'),
+      }
+      updateMutation.mutate({ id: selectedCustomer.id, data: customerData })
+    }
+  }
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    setCustomerToDelete(customer)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDelete = () => {
+    if (customerToDelete?.id) {
+      deleteMutation.mutate(customerToDelete.id)
+      setShowDeleteDialog(false)
+      setCustomerToDelete(null)
+    }
+  }
+
+  const handleToggleHold = (customer: Customer) => {
+    if (customer.id) {
+      toggleHoldMutation.mutate({ id: customer.id, onHold: !customer.on_hold })
+    }
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading customers...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load customers</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ['customers'] })}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -614,8 +615,13 @@ export default function CustomersPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle customer report
+              onClick={async () => {
+                try {
+                  await customersApi.getReport()
+                  toast.success('Customer report generated')
+                } catch (error) {
+                  toast.error('Failed to generate customer report')
+                }
               }}
             >
               <UsersIcon className="h-4 w-4 mr-2" />
@@ -623,8 +629,13 @@ export default function CustomersPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle aged debtors
+              onClick={async () => {
+                try {
+                  await customersApi.getAgedDebtors()
+                  toast.success('Aged debtors report generated')
+                } catch (error) {
+                  toast.error('Failed to generate aged debtors report')
+                }
               }}
             >
               <CreditCardIcon className="h-4 w-4 mr-2" />
@@ -633,7 +644,7 @@ export default function CustomersPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle sales analysis
+                toast('Sales analysis report coming soon')
               }}
             >
               <ChartBarIcon className="h-4 w-4 mr-2" />
@@ -710,6 +721,21 @@ export default function CustomersPage() {
           />
         )}
       </Modal>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false)
+          setCustomerToDelete(null)
+        }}
+        onConfirm={confirmDelete}
+        title="Delete Customer"
+        message={`Are you sure you want to delete ${customerToDelete?.customer_name}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+      />
     </div>
   )
 }

@@ -195,7 +195,7 @@ const getPeriodTypeBadge = (type: string) => {
     case 'ADJUSTMENT':
       return <Badge variant="warning">Adjustment</Badge>
     case 'YEAR_END':
-      return <Badge variant="secondary">Year End</Badge>
+      return <Badge variant="default">Year End</Badge>
     case 'OPENING':
       return <Badge variant="success">Opening</Badge>
     default:
@@ -214,11 +214,11 @@ const getStatusBadge = (status: string, isCurrent: boolean) => {
     case 'CLOSED':
       return <Badge variant="warning">Closed</Badge>
     case 'LOCKED':
-      return <Badge variant="secondary">Locked</Badge>
+      return <Badge variant="default">Locked</Badge>
     case 'ARCHIVED':
       return <Badge variant="default">Archived</Badge>
     case 'FUTURE':
-      return <Badge variant="outline">Future</Badge>
+      return <Badge variant="default">Future</Badge>
     default:
       return <Badge variant="default">{status}</Badge>
   }
@@ -231,11 +231,11 @@ const getModuleStatusBadge = (status: string) => {
     case 'CLOSED':
       return <Badge variant="warning" className="text-xs">CLOSED</Badge>
     case 'LOCKED':
-      return <Badge variant="secondary" className="text-xs">LOCKED</Badge>
+      return <Badge variant="default" className="text-xs">LOCKED</Badge>
     case 'ARCHIVED':
       return <Badge variant="default" className="text-xs">ARCH</Badge>
     case 'FUTURE':
-      return <Badge variant="outline" className="text-xs">FUT</Badge>
+      return <Badge variant="default" className="text-xs">FUT</Badge>
     default:
       return <Badge variant="default" className="text-xs">{status}</Badge>
   }
@@ -386,7 +386,7 @@ export default function PeriodsPage() {
               <Badge variant="info" className="text-xs">POST</Badge>
             )}
             {period.locked_by && (
-              <Badge variant="secondary" className="text-xs">LOCK</Badge>
+              <Badge variant="default" className="text-xs">LOCK</Badge>
             )}
           </div>
         )

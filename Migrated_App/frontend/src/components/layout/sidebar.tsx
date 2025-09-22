@@ -130,7 +130,7 @@ export default function Sidebar() {
           </button>
           {expanded && (
             <div className="ml-6 mt-1 space-y-1">
-              {item.children.map(child => renderNavigationItem(child, level + 1))}
+              {item.children?.map(child => renderNavigationItem(child, level + 1))}
             </div>
           )}
         </div>

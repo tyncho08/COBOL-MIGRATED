@@ -170,7 +170,7 @@ const getBatchTypeBadge = (type: string) => {
     case 'INVOICE':
       return <Badge variant="success">Invoice</Badge>
     case 'PAYMENT':
-      return <Badge variant="secondary">Payment</Badge>
+      return <Badge variant="default">Payment</Badge>
     case 'ADJUSTMENT':
       return <Badge variant="default">Adjustment</Badge>
     default:
@@ -191,7 +191,7 @@ const getStatusBadge = (status: string) => {
     case 'REJECTED':
       return <Badge variant="danger">Rejected</Badge>
     case 'CANCELLED':
-      return <Badge variant="secondary">Cancelled</Badge>
+      return <Badge variant="default">Cancelled</Badge>
     default:
       return <Badge variant="default">{status}</Badge>
   }
@@ -206,7 +206,7 @@ const getSourceModuleBadge = (module: string) => {
     case 'AP':
       return <Badge variant="warning" className="text-xs">AP</Badge>
     case 'INV':
-      return <Badge variant="secondary" className="text-xs">INV</Badge>
+      return <Badge variant="default" className="text-xs">INV</Badge>
     default:
       return <Badge variant="default" className="text-xs">{module}</Badge>
   }

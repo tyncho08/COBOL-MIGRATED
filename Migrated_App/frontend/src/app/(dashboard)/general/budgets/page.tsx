@@ -173,7 +173,7 @@ const getBudgetTypeBadge = (type: string) => {
     case 'FORECAST':
       return <Badge variant="warning">Forecast</Badge>
     case 'DEPARTMENTAL':
-      return <Badge variant="secondary">Departmental</Badge>
+      return <Badge variant="default">Departmental</Badge>
     case 'PROJECT':
       return <Badge variant="default">Project</Badge>
     default:
@@ -183,7 +183,7 @@ const getBudgetTypeBadge = (type: string) => {
 
 const getStatusBadge = (status: string, isActive: boolean) => {
   if (!isActive) {
-    return <Badge variant="secondary">Inactive</Badge>
+    return <Badge variant="default">Inactive</Badge>
   }
   
   switch (status) {

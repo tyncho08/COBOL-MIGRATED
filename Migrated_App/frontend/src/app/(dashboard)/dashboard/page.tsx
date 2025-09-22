@@ -106,8 +106,25 @@ const getStatusBadge = (status: string) => {
   }
 }
 
+interface DashboardStats {
+  totalPurchaseOrders: number
+  pendingApprovals: number
+  stockItems: number
+  lowStockItems: number
+  totalSuppliers: number
+  activeSuppliers: number
+  openPeriods: number
+  journalEntries: number
+}
+
+interface DashboardData {
+  stats: DashboardStats
+  recentActivity: any[]
+  alerts: any[]
+}
+
 export default function DashboardPage() {
-  const { data: dashboardData, isLoading } = useQuery({
+  const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
     queryFn: () => Promise.resolve(mockDashboardData),
   })
@@ -116,7 +133,7 @@ export default function DashboardPage() {
     return <div>Loading dashboard...</div>
   }
 
-  const stats = dashboardData?.stats || {}
+  const stats = dashboardData?.stats || {} as DashboardStats
   const recentActivity = dashboardData?.recentActivity || []
   const alerts = dashboardData?.alerts || []
 

@@ -241,7 +241,7 @@ const getCategoryBadge = (category: string) => {
     case 'SECURITY':
       return <Badge variant="danger" className="text-xs">Security</Badge>
     case 'SYSTEM':
-      return <Badge variant="secondary" className="text-xs">System</Badge>
+      return <Badge variant="default" className="text-xs">System</Badge>
     case 'EMAIL':
       return <Badge variant="warning" className="text-xs">Email</Badge>
     case 'INTEGRATION':
@@ -254,17 +254,17 @@ const getCategoryBadge = (category: string) => {
 const getDataTypeBadge = (dataType: string) => {
   switch (dataType) {
     case 'STRING':
-      return <Badge variant="outline" className="text-xs">Text</Badge>
+      return <Badge variant="default" className="text-xs">Text</Badge>
     case 'INTEGER':
-      return <Badge variant="outline" className="text-xs">Number</Badge>
+      return <Badge variant="default" className="text-xs">Number</Badge>
     case 'BOOLEAN':
-      return <Badge variant="outline" className="text-xs">Boolean</Badge>
+      return <Badge variant="default" className="text-xs">Boolean</Badge>
     case 'ENUM':
-      return <Badge variant="outline" className="text-xs">Select</Badge>
+      return <Badge variant="default" className="text-xs">Select</Badge>
     case 'DATE':
-      return <Badge variant="outline" className="text-xs">Date</Badge>
+      return <Badge variant="default" className="text-xs">Date</Badge>
     default:
-      return <Badge variant="outline" className="text-xs">{dataType}</Badge>
+      return <Badge variant="default" className="text-xs">{dataType}</Badge>
   }
 }
 
@@ -380,7 +380,7 @@ export default function SystemConfigPage() {
               )}
             </div>
             {!config.is_user_editable && (
-              <Badge variant="secondary" className="text-xs">Read Only</Badge>
+              <Badge variant="default" className="text-xs">Read Only</Badge>
             )}
           </div>
         )
@@ -458,7 +458,7 @@ export default function SystemConfigPage() {
       default:
         return [{
           ...baseField,
-          type: config.is_encrypted ? 'password' as const : 'text' as const,
+          type: 'text' as const,
         }]
     }
   }

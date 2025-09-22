@@ -99,6 +99,46 @@ svg {
     @apply px-6 py-4 whitespace-nowrap text-sm text-secondary-900;
   }
   
+  /* Scrollable table container */
+  .table-scroll-container {
+    @apply relative overflow-x-auto shadow-sm;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: theme('colors.gray.400') theme('colors.gray.100');
+  }
+  
+  .table-scroll-container::-webkit-scrollbar {
+    height: 8px;
+  }
+  
+  .table-scroll-container::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  
+  .table-scroll-container::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 rounded-full;
+  }
+  
+  .table-scroll-container::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
+  }
+  
+  /* Sticky actions column */
+  .sticky-column {
+    @apply sticky right-0 bg-white shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)];
+  }
+  
+  /* Table responsive utilities */
+  @media (max-width: 768px) {
+    .table-mobile-stack td {
+      @apply block py-2 text-right;
+    }
+    
+    .table-mobile-stack td::before {
+      @apply content-[attr(data-label)] float-left font-medium text-gray-700;
+    }
+  }
+  
   /* Cards and panels */
   .card {
     @apply bg-white overflow-hidden shadow rounded-lg;

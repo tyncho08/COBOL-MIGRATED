@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -37,6 +37,36 @@ export function DataTable<TData, TValue>({
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [globalFilter, setGlobalFilter] = useState('')
+  const [showLeftShadow, setShowLeftShadow] = useState(false)
+  const [showRightShadow, setShowRightShadow] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const checkScroll = () => {
+      const element = scrollRef.current
+      if (element) {
+        const { scrollLeft, scrollWidth, clientWidth } = element
+        setShowLeftShadow(scrollLeft > 0)
+        setShowRightShadow(scrollLeft + clientWidth < scrollWidth - 1)
+      }
+    }
+    
+    // Check on mount
+    checkScroll()
+    
+    // Check on window resize
+    window.addEventListener('resize', checkScroll)
+    return () => window.removeEventListener('resize', checkScroll)
+  }, [data]) // Re-check when data changes
+
+  const handleScroll = () => {
+    const element = scrollRef.current
+    if (element) {
+      const { scrollLeft, scrollWidth, clientWidth } = element
+      setShowLeftShadow(scrollLeft > 0)
+      setShowRightShadow(scrollLeft + clientWidth < scrollWidth - 1)
+    }
+  }
 
   const table = useReactTable({
     data,
@@ -73,60 +103,106 @@ export function DataTable<TData, TValue>({
         </div>
       )}
       
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead
-                      key={header.id}
-                      sortable={header.column.getCanSort()}
-                      sorted={
-                        header.column.getIsSorted() === 'asc' ? 'asc' :
-                        header.column.getIsSorted() === 'desc' ? 'desc' : false
-                      }
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  selected={row.getIsSelected()}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
+      <div className="relative rounded-md border overflow-hidden shadow ring-1 ring-black ring-opacity-5">
+        {/* Subtle gradient shadows for scroll indicators */}
+        {showLeftShadow && (
+          <div className="absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-white/90 via-white/50 to-transparent pointer-events-none z-10" />
+        )}
+        {showRightShadow && (
+          <div className="absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-white/90 via-white/50 to-transparent pointer-events-none z-10" />
+        )}
+        
+        <div 
+          className="overflow-x-auto table-scroll-container"
+          ref={scrollRef}
+          onScroll={handleScroll}
+        >
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const isActionsColumn = header.column.id === 'actions'
+                    return (
+                      <TableHead
+                        key={header.id}
+                        sortable={header.column.getCanSort()}
+                        sorted={
+                          header.column.getIsSorted() === 'asc' ? 'asc' :
+                          header.column.getIsSorted() === 'desc' ? 'desc' : false
+                        }
+                        onClick={header.column.getToggleSortingHandler()}
+                        className={`whitespace-nowrap sticky top-0 bg-gray-50 ${isActionsColumn ? 'sticky-column' : ''}`}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                      </TableHead>
+                    )
+                  })}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    selected={row.getIsSelected()}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      // Allow wrapping for specific columns like description
+                      const isWrappable = cell.column.id === 'description' || 
+                                         cell.column.id === 'notes' ||
+                                         cell.column.id === 'address'
+                      const isActionsColumn = cell.column.id === 'actions'
+                      
+                      return (
+                        <TableCell 
+                          key={cell.id} 
+                          className={`
+                            ${isWrappable ? '' : 'whitespace-nowrap'}
+                            ${isActionsColumn ? 'sticky-column' : ''}
+                          `}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      )
+                    })}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+        
+        {/* Subtle scroll indicators */}
+        {showRightShadow && (
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            <svg className="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        )}
+        {showLeftShadow && (
+          <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            <svg className="w-6 h-6 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </div>
+        )}
       </div>
       
       {enablePagination && (

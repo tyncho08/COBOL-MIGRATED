@@ -5,13 +5,11 @@ interface TableProps extends HTMLAttributes<HTMLTableElement> {}
 
 const Table = forwardRef<HTMLTableElement, TableProps>(
   ({ className, ...props }, ref) => (
-    <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-      <table
-        ref={ref}
-        className={clsx('min-w-full divide-y divide-gray-300', className)}
-        {...props}
-      />
-    </div>
+    <table
+      ref={ref}
+      className={clsx('min-w-full divide-y divide-gray-300', className)}
+      {...props}
+    />
   )
 )
 
@@ -107,13 +105,15 @@ const TableHead = forwardRef<HTMLTableCellElement, TableHeadProps>(
 
 TableHead.displayName = 'TableHead'
 
-interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {}
+interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
+  colSpan?: number
+}
 
 const TableCell = forwardRef<HTMLTableCellElement, TableCellProps>(
   ({ className, ...props }, ref) => (
     <td
       ref={ref}
-      className={clsx('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)}
+      className={clsx('px-6 py-4 text-sm text-gray-900', className)}
       {...props}
     />
   )

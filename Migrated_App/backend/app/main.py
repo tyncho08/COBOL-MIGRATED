@@ -242,6 +242,11 @@ def get_chart_of_accounts(current_user: dict = Depends(require_read)):
     """Chart of Accounts - COBOL GL module equivalent"""
     return {"data": [], "message": "Chart of accounts endpoint ready"}
 
+@app.get("/api/v1/general/journals")
+def get_journal_entries(current_user: dict = Depends(require_read)):
+    """Journal Entries - COBOL GL journal module equivalent"""
+    return {"data": [], "message": "Journal entries endpoint ready"}
+
 @app.get("/api/v1/master/customers")
 def get_customers(current_user: dict = Depends(require_read)):
     """Customer Master - COBOL customer file equivalent"""

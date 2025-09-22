@@ -12,3 +12,6 @@ This repository contains the artifacts generated during the demo of migrating a 
 
 * **`documentation/`**
   Documentation generated with AI assistance and a custom COBOL parser. Includes both functional and technical descriptions of the system.
+
+* **`Migrated_App/`**
+  The New AI-Migrated App, using the COBOL Original App and the Documentation

@@ -249,10 +249,10 @@ def root():
     return {"message": "ACAS Migrated API - Backend is running"}
 EOF
         info "Starting with simple backend..."
-        nohup uvicorn app.main_simple:app --host 0.0.0.0 --port $BACKEND_PORT --reload >../backend.log 2>&1 &
+        nohup uvicorn app.main_simple:app --host 0.0.0.0 --port $BACKEND_PORT --reload >../logs/backend.log 2>&1 &
     else
         info "Starting full backend..."
-        nohup uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload >../backend.log 2>&1 &
+        nohup uvicorn app.main:app --host 0.0.0.0 --port $BACKEND_PORT --reload >../logs/backend.log 2>&1 &
     fi
     
     BACKEND_PID=$!
@@ -266,12 +266,12 @@ EOF
             return 0
         fi
         if [[ $i -eq 15 ]]; then
-            warning "Backend taking longer than expected. Check backend.log for details."
+            warning "Backend taking longer than expected. Check logs/backend.log for details."
         fi
         sleep 1
     done
     
-    error_exit "Backend failed to start. Check backend.log for errors."
+    error_exit "Backend failed to start. Check logs/backend.log for errors."
 }
 
 # Start frontend
@@ -282,7 +282,7 @@ start_frontend() {
     
     # Start Next.js
     info "Starting Next.js development server..."
-    nohup npm run dev >../frontend.log 2>&1 &
+    nohup npm run dev >../logs/frontend.log 2>&1 &
     FRONTEND_PID=$!
     
     cd ..
@@ -295,12 +295,12 @@ start_frontend() {
             return 0
         fi
         if [[ $i -eq 20 ]]; then
-            warning "Frontend taking longer than expected. Check frontend.log for details."
+            warning "Frontend taking longer than expected. Check logs/frontend.log for details."
         fi
         sleep 1
     done
     
-    error_exit "Frontend failed to start. Check frontend.log for errors."
+    error_exit "Frontend failed to start. Check logs/frontend.log for errors."
 }
 
 # Cleanup function
@@ -358,6 +358,9 @@ main() {
     # Change to script directory
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     cd "$SCRIPT_DIR"
+    
+    # Create logs directory
+    mkdir -p logs
     
     # Trap cleanup on exit
     trap cleanup EXIT INT TERM

@@ -112,7 +112,7 @@ export default function Sidebar() {
           <button
             onClick={() => toggleExpanded(item.name)}
             className={clsx(
-              'group flex w-full items-center rounded-md py-2 pl-2 text-sm font-medium',
+              'group flex w-full items-center rounded-md py-2 pl-2 text-sm font-medium text-left',
               level === 0 ? 'text-gray-300 hover:bg-gray-700 hover:text-white' : 'text-gray-400 hover:text-gray-300',
               'focus:outline-none focus:ring-2 focus:ring-white'
             )}
@@ -147,7 +147,7 @@ export default function Sidebar() {
             : level === 0
             ? 'text-gray-300 hover:bg-gray-700 hover:text-white'
             : 'text-gray-400 hover:text-gray-300',
-          'group flex items-center rounded-md py-2 pl-2 text-sm font-medium'
+          'group flex items-center rounded-md py-2 pl-2 text-sm font-medium text-left'
         )}
       >
         <item.icon

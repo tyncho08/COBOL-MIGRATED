@@ -109,37 +109,10 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Features */}
-        <div className="mt-16">
-          <h2 className="text-center text-2xl font-semibold text-secondary-800 mb-8">
-            Enterprise-Grade Features
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary-600">100%</div>
-              <div className="text-sm text-secondary-600">COBOL Feature Parity</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary-600">Real-time</div>
-              <div className="text-sm text-secondary-600">Financial Reporting</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary-600">Multi-user</div>
-              <div className="text-sm text-secondary-600">Concurrent Access</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary-600">Secure</div>
-              <div className="text-sm text-secondary-600">Role-based Access</div>
-            </div>
-          </div>
-        </div>
 
         {/* Footer */}
         <footer className="mt-16 text-center text-sm text-secondary-500">
           <p>© 2024 ACAS Migrated. Built on decades of accounting expertise.</p>
-          <p className="mt-2">
-            Migration from COBOL/GnuCOBOL to modern Python/Next.js stack
-          </p>
         </footer>
       </div>
     </div>

@@ -2,12 +2,13 @@
 ACAS Migrated - Main FastAPI Application
 Complete COBOL accounting system migration with authentication
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import jwt
 from datetime import datetime, timedelta
 import logging
+from app.auth.dependencies import get_current_user, require_read
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -120,82 +121,96 @@ def login(request: LoginRequest):
         }
     }
 
+@app.post("/api/v1/auth/logout")
+def logout(current_user: dict = Depends(get_current_user)):
+    """ACAS Logout endpoint"""
+    # In a real application, you might want to blacklist the token
+    # For now, just return success
+    logger.info(f"User {current_user['username']} logged out")
+    return {"message": "Successfully logged out"}
+
 @app.get("/api/v1/auth/me")
-def get_current_user():
+def get_current_user_info(current_user: dict = Depends(get_current_user)):
     """Get current user info - ACAS user profile"""
+    # Get full user details based on username
+    user_data = MOCK_USERS.get(current_user["username"], {})
+    
     return {
         "id": 1,
-        "username": "demo",
-        "full_name": "Demo User",
-        "email": "demo@acas.com", 
+        "username": current_user["username"],
+        "full_name": current_user["name"],
+        "email": f"{current_user['username']}@acas.com", 
         "is_active": True,
-        "is_superuser": False,
-        "user_level": 5,
+        "is_superuser": current_user.get("role") == "admin",
+        "user_level": current_user.get("access_level", 5),
         "module_access": {
-            "sales": 5,
-            "purchase": 5,
-            "stock": 5,
-            "general": 5,
-            "system": 3
+            "sales": current_user.get("access_level", 5),
+            "purchase": current_user.get("access_level", 5),
+            "stock": current_user.get("access_level", 5),
+            "general": current_user.get("access_level", 5),
+            "system": min(current_user.get("access_level", 5), 3)
         },
         "allowed_companies": ["ACAS_DEMO"]
     }
 
 @app.get("/api/v1/auth/permissions")
-def get_user_permissions():
+def get_user_permissions(current_user: dict = Depends(get_current_user)):
     """Get current user permissions - ACAS permission system"""
+    access_level = current_user.get("access_level", 5)
+    is_admin = current_user.get("role") == "admin"
+    
     return {
         "user_id": 1,
-        "username": "demo",
-        "is_superuser": False,
-        "user_level": 5,
+        "username": current_user["username"],
+        "is_superuser": is_admin,
+        "user_level": access_level,
         "module_access": {
-            "sales": 5,
-            "purchase": 5,
-            "stock": 5,
-            "general": 5,
-            "system": 3
+            "sales": access_level,
+            "purchase": access_level,
+            "stock": access_level,
+            "general": access_level,
+            "system": min(access_level, 3)
         },
         "permissions": {
             "sales": {
-                "level": 5,
+                "level": access_level,
                 "can_view": True,
-                "can_edit": True,
-                "can_delete": False,
-                "can_close": False,
-                "can_admin": False
+                "can_edit": access_level >= 3,
+                "can_delete": access_level >= 7,
+                "can_close": access_level >= 7,
+                "can_admin": is_admin
             },
             "purchase": {
-                "level": 5,
+                "level": access_level,
                 "can_view": True,
-                "can_edit": True,
-                "can_delete": False,
-                "can_close": False,
-                "can_admin": False
+                "can_edit": access_level >= 3,
+                "can_delete": access_level >= 7,
+                "can_close": access_level >= 7,
+                "can_admin": is_admin
             },
             "stock": {
-                "level": 5,
+                "level": access_level,
                 "can_view": True,
-                "can_edit": True,
-                "can_delete": False,
-                "can_close": False,
-                "can_admin": False
+                "can_edit": access_level >= 3,
+                "can_delete": access_level >= 7,
+                "can_close": access_level >= 7,
+                "can_admin": is_admin
             },
             "general": {
-                "level": 5,
+                "level": access_level,
                 "can_view": True,
-                "can_edit": True,
-                "can_delete": False,
-                "can_close": False,
-                "can_admin": False
+                "can_edit": access_level >= 3,
+                "can_delete": access_level >= 7,
+                "can_close": access_level >= 7,
+                "can_admin": is_admin
             },
             "system": {
-                "level": 3,
+                "level": min(access_level, 3),
                 "can_view": True,
-                "can_edit": False,
-                "can_delete": False,
-                "can_close": False,
-                "can_admin": False
+                "can_edit": is_admin,
+                "can_delete": is_admin,
+                "can_close": is_admin,
+                "can_admin": is_admin
             }
         }
     }
@@ -208,42 +223,42 @@ def database_health():
 # ACAS Business Module Endpoints - Basic Structure
 
 @app.get("/api/v1/sales/orders")
-def get_sales_orders():
+def get_sales_orders(current_user: dict = Depends(require_read)):
     """Sales Orders - COBOL SL module equivalent"""
     return {"data": [], "message": "Sales orders endpoint ready"}
 
-@app.get("/api/v1/purchase/orders") 
-def get_purchase_orders():
+@app.get("/api/v1/purchase/orders")
+def get_purchase_orders(current_user: dict = Depends(require_read)):
     """Purchase Orders - COBOL PL module equivalent"""
     return {"data": [], "message": "Purchase orders endpoint ready"}
 
 @app.get("/api/v1/stock/items")
-def get_stock_items():
+def get_stock_items(current_user: dict = Depends(require_read)):
     """Stock Items - COBOL ST module equivalent"""
     return {"data": [], "message": "Stock items endpoint ready"}
 
 @app.get("/api/v1/general/accounts")
-def get_chart_of_accounts():
+def get_chart_of_accounts(current_user: dict = Depends(require_read)):
     """Chart of Accounts - COBOL GL module equivalent"""
     return {"data": [], "message": "Chart of accounts endpoint ready"}
 
 @app.get("/api/v1/master/customers")
-def get_customers():
+def get_customers(current_user: dict = Depends(require_read)):
     """Customer Master - COBOL customer file equivalent"""
     return {"data": [], "message": "Customers endpoint ready"}
 
 @app.get("/api/v1/master/suppliers")
-def get_suppliers():
+def get_suppliers(current_user: dict = Depends(require_read)):
     """Supplier Master - COBOL supplier file equivalent"""
     return {"data": [], "message": "Suppliers endpoint ready"}
 
 @app.get("/api/v1/system/periods")
-def get_periods():
+def get_periods(current_user: dict = Depends(require_read)):
     """System Periods - COBOL period control equivalent"""
     return {"data": [], "message": "Periods endpoint ready"}
 
 @app.get("/api/v1/system/config")
-def get_system_config():
+def get_system_config(current_user: dict = Depends(require_read)):
     """System Configuration - COBOL system parameters equivalent"""
     return {
         "company_name": "ACAS Migrated Demo", 

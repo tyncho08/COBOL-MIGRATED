@@ -155,18 +155,6 @@ function LoginForm() {
             </button>
           </div>
 
-          {/* Demo credentials */}
-          <div className="mt-4 rounded-md bg-blue-50 p-4">
-            <div className="flex">
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-blue-800">Demo Credentials</h3>
-                <div className="mt-2 text-sm text-blue-700">
-                  <p>Admin: admin / admin123</p>
-                  <p>User: demo / demo123</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </form>
 
         <div className="text-center">

@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Emergency icon size fixes */
+svg {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+}
+
+.h-6 {
+  height: 1.5rem !important;
+}
+
+.w-6 {
+  width: 1.5rem !important;
+}
+
+.h-5 {
+  height: 1.25rem !important;
+}
+
+.w-5 {
+  width: 1.25rem !important;
+}
+
+/* Custom CSS for ACAS Migrated */
+
+@layer base {
+  /* Typography defaults for financial application */
+  body {
+    @apply font-sans text-base;
+  }
+  
+  h1 {
+    @apply text-3xl font-bold text-secondary-900;
+  }
+  
+  h2 {
+    @apply text-2xl font-semibold text-secondary-800;
+  }
+  
+  h3 {
+    @apply text-xl font-semibold text-secondary-800;
+  }
+  
+  h4 {
+    @apply text-lg font-medium text-secondary-700;
+  }
+  
+  /* Numeric data should use monospace for alignment */
+  .numeric {
+    @apply font-mono text-right;
+  }
+  
+  /* Focus styles for accessibility */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+}
+
+@layer components {
+  /* Professional button styles */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 border font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors duration-200;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-600 border-transparent text-white hover:bg-primary-700 focus:ring-primary-500;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-white border-secondary-300 text-secondary-700 hover:bg-secondary-50 focus:ring-secondary-500;
+  }
+  
+  .btn-danger {
+    @apply btn bg-danger-600 border-transparent text-white hover:bg-danger-700 focus:ring-danger-500;
+  }
+  
+  /* Form inputs */
+  .form-input {
+    @apply block w-full rounded-md border-secondary-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-secondary-700;
+  }
+  
+  /* Data tables */
+  .data-table {
+    @apply min-w-full divide-y divide-secondary-200;
+  }
+  
+  .data-table-header {
+    @apply bg-secondary-50 px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider;
+  }
+  
+  .data-table-cell {
+    @apply px-6 py-4 whitespace-nowrap text-sm text-secondary-900;
+  }
+  
+  /* Cards and panels */
+  .card {
+    @apply bg-white overflow-hidden shadow rounded-lg;
+  }
+  
+  .card-header {
+    @apply px-6 py-4 border-b border-secondary-200;
+  }
+  
+  .card-body {
+    @apply px-6 py-4;
+  }
+  
+  /* Status indicators */
+  .status-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-active {
+    @apply status-badge bg-success-100 text-success-800;
+  }
+  
+  .status-pending {
+    @apply status-badge bg-warning-100 text-warning-800;
+  }
+  
+  .status-inactive {
+    @apply status-badge bg-secondary-100 text-secondary-800;
+  }
+  
+  .status-error {
+    @apply status-badge bg-danger-100 text-danger-800;
+  }
+  
+  /* Financial data display */
+  .amount-positive {
+    @apply text-success-600 font-medium;
+  }
+  
+  .amount-negative {
+    @apply text-danger-600 font-medium;
+  }
+  
+  /* Navigation styles */
+  .nav-link {
+    @apply text-secondary-600 hover:text-secondary-900 px-3 py-2 rounded-md text-sm font-medium transition-colors;
+  }
+  
+  .nav-link-active {
+    @apply bg-primary-50 text-primary-700 px-3 py-2 rounded-md text-sm font-medium;
+  }
+  
+  /* Module colors for visual distinction */
+  .module-sales {
+    @apply border-l-4 border-blue-500;
+  }
+  
+  .module-purchase {
+    @apply border-l-4 border-purple-500;
+  }
+  
+  .module-stock {
+    @apply border-l-4 border-green-500;
+  }
+  
+  .module-general {
+    @apply border-l-4 border-yellow-500;
+  }
+  
+  .module-irs {
+    @apply border-l-4 border-red-500;
+  }
+  
+  .module-system {
+    @apply border-l-4 border-gray-500;
+  }
+}
+
+@layer utilities {
+  /* Print styles for invoices/reports */
+  @media print {
+    @page {
+      margin: 0.5in;
+    }
+    
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-break {
+      page-break-after: always;
+    }
+    
+    body {
+      @apply text-black bg-white;
+    }
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin h-5 w-5 text-primary-600;
+  }
+  
+  /* Truncate text utilities */
+  .truncate-2-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Financial number formatting */
+  .currency::before {
+    content: '$';
+  }
+  
+  .percentage::after {
+    content: '%';
+  }
+  
+  /* Grid layouts for dashboards */
+  .dashboard-grid {
+    @apply grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+  
+  .report-grid {
+    @apply grid gap-4 grid-cols-1 lg:grid-cols-2;
+  }
+}

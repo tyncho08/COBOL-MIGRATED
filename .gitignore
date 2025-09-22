@@ -17,6 +17,29 @@ Thumbs.db
 # Logs
 *.log
 *.pid
+Migrated_App/logs/
+Migrated_App/backend.log
+Migrated_App/frontend.log
+
+# Node.js
+Migrated_App/frontend/node_modules/
+Migrated_App/frontend/.next/
+Migrated_App/frontend/out/
+Migrated_App/frontend/.env.local
+Migrated_App/frontend/.env.production
+Migrated_App/frontend/.env.development
+
+# Python
+Migrated_App/backend/__pycache__/
+Migrated_App/backend/.venv/
+Migrated_App/backend/.env
+Migrated_App/backend/*.pyc
+Migrated_App/backend/.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
 # Temporary files
 *.tmp

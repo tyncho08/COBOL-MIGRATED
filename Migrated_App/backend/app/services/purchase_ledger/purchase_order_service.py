@@ -529,3 +529,198 @@ class PurchaseOrderService(BaseService):
         }
         
         return new_status in allowed_transitions.get(current_status, [])
+    
+    def create_goods_receipt(
+        self,
+        order_id: int,
+        receipt_data: Dict,
+        user_id: int
+    ) -> Dict:
+        """
+        Create goods receipt for purchase order
+        Migrated from pl820.cbl GOODS-RECEIPT-PROCESSING
+        """
+        try:
+            # Get order
+            order = self.db.query(PurchaseOrder).filter(
+                PurchaseOrder.id == order_id
+            ).first()
+            if not order:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Purchase order not found"
+                )
+            
+            # Check if order is approved
+            if order.order_status != PurchaseOrderStatus.APPROVED:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Order must be approved before receiving goods"
+                )
+            
+            # Generate receipt number
+            receipt_number = self._get_next_receipt_number()
+            
+            # Create goods receipt record (simplified for now)
+            receipt_date = receipt_data.get('receipt_date', date.today())
+            delivery_note = receipt_data.get('delivery_note', '')
+            notes = receipt_data.get('notes', '')
+            
+            # Update order lines with received quantities
+            total_received = Decimal('0')
+            for line in order.order_lines:
+                if line.line_status == "OPEN":
+                    # For simplicity, mark as fully received
+                    line.quantity_received = line.quantity_ordered
+                    line.quantity_outstanding = Decimal('0')
+                    line.line_status = "RECEIVED"
+                    line.updated_at = datetime.now()
+                    total_received += line.quantity_received
+                    
+                    # Update stock item quantities
+                    stock_item = self.db.query(StockItem).filter(
+                        StockItem.stock_code == line.stock_code
+                    ).first()
+                    if stock_item:
+                        stock_item.quantity_on_hand += line.quantity_received
+                        stock_item.last_receipt_date = receipt_date
+            
+            # Update order status
+            order.order_status = PurchaseOrderStatus.COMPLETE
+            order.has_receipts = True
+            order.updated_at = datetime.now()
+            order.updated_by = str(user_id)
+            
+            self.db.commit()
+            
+            # Create audit trail
+            self._create_audit_trail(
+                table_name="purchase_orders",
+                record_id=str(order.id),
+                operation="GOODS_RECEIPT",
+                user_id=user_id,
+                details=f"Goods receipt {receipt_number} created for PO {order.order_number}"
+            )
+            
+            return {
+                "receipt_number": receipt_number,
+                "order_number": order.order_number,
+                "received_date": receipt_date.isoformat(),
+                "total_received": float(total_received),
+                "message": "Goods receipt created successfully"
+            }
+            
+        except HTTPException:
+            self.db.rollback()
+            raise
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error creating goods receipt: {str(e)}"
+            )
+    
+    def convert_to_invoice(self, order_id: int, user_id: int) -> Dict:
+        """
+        Convert purchase order to invoice
+        Migrated from pl830.cbl CONVERT-TO-INVOICE
+        """
+        try:
+            # Get order
+            order = self.db.query(PurchaseOrder).filter(
+                PurchaseOrder.id == order_id
+            ).first()
+            if not order:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Purchase order not found"
+                )
+            
+            # Check if order is complete/received
+            if order.order_status not in [PurchaseOrderStatus.COMPLETE, PurchaseOrderStatus.PARTIAL]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Order must be received before invoicing"
+                )
+            
+            if order.is_invoiced:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Order has already been invoiced"
+                )
+            
+            # Generate invoice number
+            invoice_number = self._get_next_invoice_number()
+            
+            # Mark order as invoiced
+            order.is_invoiced = True
+            order.invoice_number = invoice_number
+            order.invoice_date = date.today()
+            order.updated_at = datetime.now()
+            order.updated_by = str(user_id)
+            
+            self.db.commit()
+            
+            # Create audit trail
+            self._create_audit_trail(
+                table_name="purchase_orders",
+                record_id=str(order.id),
+                operation="CONVERT_INVOICE",
+                user_id=user_id,
+                details=f"PO {order.order_number} converted to invoice {invoice_number}"
+            )
+            
+            return {
+                "invoice_number": invoice_number,
+                "order_number": order.order_number,
+                "invoice_date": order.invoice_date.isoformat(),
+                "message": "Purchase order converted to invoice successfully"
+            }
+            
+        except HTTPException:
+            self.db.rollback()
+            raise
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error converting to invoice: {str(e)}"
+            )
+    
+    def _get_next_receipt_number(self) -> str:
+        """Generate next goods receipt number"""
+        sequence = self.db.query(NumberSequence).filter(
+            NumberSequence.sequence_type == "GOODS_RECEIPT"
+        ).with_for_update().first()
+        
+        if not sequence:
+            sequence = NumberSequence(
+                sequence_type="GOODS_RECEIPT",
+                prefix="GR",
+                current_number=1,
+                min_digits=6
+            )
+            self.db.add(sequence)
+        
+        sequence.current_number += 1
+        number_str = str(sequence.current_number).zfill(sequence.min_digits)
+        return f"{sequence.prefix}{number_str}"
+    
+    def _get_next_invoice_number(self) -> str:
+        """Generate next purchase invoice number"""
+        sequence = self.db.query(NumberSequence).filter(
+            NumberSequence.sequence_type == "PURCHASE_INVOICE"
+        ).with_for_update().first()
+        
+        if not sequence:
+            sequence = NumberSequence(
+                sequence_type="PURCHASE_INVOICE",
+                prefix="PI",
+                current_number=1,
+                min_digits=6
+            )
+            self.db.add(sequence)
+        
+        sequence.current_number += 1
+        number_str = str(sequence.current_number).zfill(sequence.min_digits)
+        return f"{sequence.prefix}{number_str}"

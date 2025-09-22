@@ -84,6 +84,7 @@ export default function SuppliersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
 
@@ -269,7 +270,8 @@ export default function SuppliersPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                toast('Supplier details view coming soon')
+                setSelectedSupplier(supplier)
+                setShowDetailsModal(true)
               }}
               title="View Details"
             >
@@ -632,8 +634,13 @@ export default function SuppliersPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                toast('Purchase analysis report coming soon')
+              onClick={async () => {
+                try {
+                  await suppliersApi.getPurchaseAnalysisReport()
+                  toast.success('Purchase analysis report generated')
+                } catch (error) {
+                  toast.error('Failed to generate purchase analysis report')
+                }
               }}
             >
               <ChartBarIcon className="h-4 w-4 mr-2" />
@@ -712,6 +719,197 @@ export default function SuppliersPage() {
               notes: selectedSupplier.notes,
             }}
           />
+        )}
+      </Modal>
+
+      {/* Supplier Details Modal */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title={`Supplier Details - ${selectedSupplier?.supplier_code}`}
+        size="xl"
+      >
+        {selectedSupplier && (
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Supplier Code</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedSupplier.supplier_code}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Supplier Name</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedSupplier.supplier_name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedSupplier.contact_person || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Supplier Type</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedSupplier.supplier_type}</p>
+              </div>
+            </div>
+
+            {/* Address Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Address Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedSupplier.address_line1}
+                    {selectedSupplier.address_line2 && <><br />{selectedSupplier.address_line2}</>}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">City, State</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedSupplier.city}{selectedSupplier.state && `, ${selectedSupplier.state}`}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Postal Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.postal_code}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Country</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.country}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Contact Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.email || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Fax</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.fax || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Website</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.website || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Financial Information</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Current Balance</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: selectedSupplier.currency_code || 'USD',
+                    }).format(selectedSupplier.balance || 0)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">YTD Purchases</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: selectedSupplier.currency_code || 'USD',
+                    }).format(selectedSupplier.ytd_purchases || 0)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Payment Terms</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.payment_terms}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Currency</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.currency_code}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Discount %</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.discount_percent || 0}%</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Tax Number</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.tax_number || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Banking Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Banking Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bank Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.bank_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bank Branch</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.bank_branch || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Account Number</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.bank_account || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">SWIFT Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.swift_code || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Additional Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Additional Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Category</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedSupplier.category || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Purchase Date</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedSupplier.last_purchase_date ? new Date(selectedSupplier.last_purchase_date).toLocaleDateString() : 'Never'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {selectedSupplier.notes && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Notes</h3>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedSupplier.notes}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="border-t pt-4 flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDetailsModal(false)
+                  setShowEditModal(true)
+                }}
+              >
+                Edit Supplier
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
 

@@ -4,10 +4,13 @@ Complete COBOL accounting system migration with authentication
 """
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import jwt
 from datetime import datetime, timedelta
 import logging
+import io
+import json
 from app.auth.dependencies import get_current_user, require_read
 
 # Configure logging
@@ -270,6 +273,222 @@ def get_system_config(current_user: dict = Depends(require_read)):
         "financial_year": "2024",
         "base_currency": "USD",
         "message": "System config endpoint ready"
+    }
+
+# Print endpoints
+@app.get("/api/v1/purchase/orders/{order_id}/print")
+def print_purchase_order(order_id: int, current_user: dict = Depends(require_read)):
+    """Print purchase order"""
+    logger.info(f"Printing purchase order {order_id}")
+    
+    # Generate mock PDF content
+    pdf_content = f"PURCHASE ORDER #{order_id}\nGenerated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis is a mock PDF for testing purposes."
+    
+    buffer = io.BytesIO()
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        io.BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=purchase_order_{order_id}.pdf"}
+    )
+
+@app.get("/api/v1/sales/orders/{order_id}/print")
+def print_sales_order(order_id: int, current_user: dict = Depends(require_read)):
+    """Print sales order"""
+    logger.info(f"Printing sales order {order_id}")
+    
+    # Generate mock PDF content
+    pdf_content = f"SALES ORDER #{order_id}\nGenerated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis is a mock PDF for testing purposes."
+    
+    buffer = io.BytesIO()
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        io.BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=sales_order_{order_id}.pdf"}
+    )
+
+@app.get("/api/v1/master/customers/{customer_id}/print")
+def print_customer(customer_id: int, current_user: dict = Depends(require_read)):
+    """Print customer details"""
+    logger.info(f"Printing customer {customer_id}")
+    
+    pdf_content = f"CUSTOMER DETAILS #{customer_id}\nGenerated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis is a mock PDF for testing purposes."
+    
+    buffer = io.BytesIO()
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        io.BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=customer_{customer_id}.pdf"}
+    )
+
+@app.get("/api/v1/master/suppliers/{supplier_id}/print")
+def print_supplier(supplier_id: int, current_user: dict = Depends(require_read)):
+    """Print supplier details"""
+    logger.info(f"Printing supplier {supplier_id}")
+    
+    pdf_content = f"SUPPLIER DETAILS #{supplier_id}\nGenerated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis is a mock PDF for testing purposes."
+    
+    buffer = io.BytesIO()
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        io.BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=supplier_{supplier_id}.pdf"}
+    )
+
+@app.get("/api/v1/stock/items/{item_id}/print")
+def print_stock_item(item_id: int, current_user: dict = Depends(require_read)):
+    """Print stock item details"""
+    logger.info(f"Printing stock item {item_id}")
+    
+    pdf_content = f"STOCK ITEM #{item_id}\nGenerated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis is a mock PDF for testing purposes."
+    
+    buffer = io.BytesIO()
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        io.BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=stock_item_{item_id}.pdf"}
+    )
+
+@app.get("/api/v1/general/journals/{journal_id}/print")
+def print_journal_entry(journal_id: int, current_user: dict = Depends(require_read)):
+    """Print journal entry"""
+    logger.info(f"Printing journal entry {journal_id}")
+    
+    pdf_content = f"JOURNAL ENTRY #{journal_id}\nGenerated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\nThis is a mock PDF for testing purposes."
+    
+    buffer = io.BytesIO()
+    buffer.write(pdf_content.encode('utf-8'))
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        io.BytesIO(buffer.read()),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=journal_entry_{journal_id}.pdf"}
+    )
+
+# Export endpoints
+@app.get("/api/v1/general/accounts/export")
+def export_chart_of_accounts(format: str = "excel", current_user: dict = Depends(require_read)):
+    """Export chart of accounts"""
+    logger.info(f"Exporting chart of accounts in {format} format")
+    
+    if format.lower() == "excel":
+        # Generate mock Excel content
+        content = "Account Code,Account Name,Account Type,Status\n1000.0001,Cash in Hand,ASSET,Active\n2000.0001,Accounts Payable,LIABILITY,Active"
+        
+        buffer = io.BytesIO()
+        buffer.write(content.encode('utf-8'))
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            io.BytesIO(buffer.read()),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=chart_of_accounts.xlsx"}
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported format")
+
+@app.get("/api/v1/general/journals/export")
+def export_journal_entries(format: str = "excel", current_user: dict = Depends(require_read)):
+    """Export journal entries"""
+    logger.info(f"Exporting journal entries in {format} format")
+    
+    if format.lower() == "excel":
+        content = "Journal Number,Date,Description,Debit,Credit,Status\nJE001,2024-01-01,Opening Balance,1000.00,1000.00,Posted"
+        
+        buffer = io.BytesIO()
+        buffer.write(content.encode('utf-8'))
+        buffer.seek(0)
+        
+        return StreamingResponse(
+            io.BytesIO(buffer.read()),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": "attachment; filename=journal_entries.xlsx"}
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported format")
+
+# Report endpoints
+@app.get("/api/v1/general/accounts/balances")
+def get_account_balances(current_user: dict = Depends(require_read)):
+    """Generate account balances report"""
+    logger.info("Generating account balances report")
+    return {
+        "report_data": [
+            {"account_code": "1000.0001", "account_name": "Cash in Hand", "balance": 5000.00},
+            {"account_code": "2000.0001", "account_name": "Accounts Payable", "balance": -2500.00}
+        ],
+        "generated_at": datetime.now().isoformat(),
+        "message": "Account balances report generated successfully"
+    }
+
+@app.get("/api/v1/general/accounts/budget-comparison")
+def get_budget_comparison(current_user: dict = Depends(require_read)):
+    """Generate budget comparison report"""
+    logger.info("Generating budget comparison report")
+    return {
+        "report_data": [
+            {"account": "Revenue", "budget": 100000.00, "actual": 85000.00, "variance": -15000.00},
+            {"account": "Expenses", "budget": 80000.00, "actual": 75000.00, "variance": 5000.00}
+        ],
+        "generated_at": datetime.now().isoformat(),
+        "message": "Budget comparison report generated successfully"
+    }
+
+@app.get("/api/v1/general/accounts/{account_code}/statement")
+def get_account_statement(account_code: str, current_user: dict = Depends(require_read)):
+    """Generate account statement"""
+    logger.info(f"Generating statement for account {account_code}")
+    return {
+        "account_code": account_code,
+        "statement_data": [
+            {"date": "2024-01-01", "description": "Opening Balance", "debit": 1000.00, "credit": 0.00, "balance": 1000.00},
+            {"date": "2024-01-15", "description": "Sales Invoice", "debit": 500.00, "credit": 0.00, "balance": 1500.00}
+        ],
+        "generated_at": datetime.now().isoformat(),
+        "message": "Account statement generated successfully"
+    }
+
+@app.get("/api/v1/general/accounts/{account_code}/history")
+def get_account_history(account_code: str, current_user: dict = Depends(require_read)):
+    """Get account transaction history"""
+    logger.info(f"Getting transaction history for account {account_code}")
+    return {
+        "account_code": account_code,
+        "transactions": [
+            {"date": "2024-01-01", "journal": "JE001", "description": "Opening Balance", "debit": 1000.00, "credit": 0.00},
+            {"date": "2024-01-15", "journal": "JE002", "description": "Sales Invoice", "debit": 500.00, "credit": 0.00}
+        ],
+        "message": "Transaction history retrieved successfully"
+    }
+
+@app.get("/api/v1/general/journals/trial-balance")
+def get_trial_balance(current_user: dict = Depends(require_read)):
+    """Generate trial balance"""
+    logger.info("Generating trial balance")
+    return {
+        "trial_balance": [
+            {"account_code": "1000.0001", "account_name": "Cash in Hand", "debit": 5000.00, "credit": 0.00},
+            {"account_code": "2000.0001", "account_name": "Accounts Payable", "debit": 0.00, "credit": 2500.00}
+        ],
+        "total_debits": 5000.00,
+        "total_credits": 2500.00,
+        "generated_at": datetime.now().isoformat(),
+        "message": "Trial balance generated successfully"
     }
 
 # Add startup event

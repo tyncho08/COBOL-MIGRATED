@@ -86,6 +86,7 @@ export default function CustomersPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
 
@@ -289,7 +290,8 @@ export default function CustomersPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                toast('Customer details view coming soon')
+                setSelectedCustomer(customer)
+                setShowDetailsModal(true)
               }}
               title="View Details"
             >
@@ -643,8 +645,13 @@ export default function CustomersPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                toast('Sales analysis report coming soon')
+              onClick={async () => {
+                try {
+                  await customersApi.getSalesAnalysisReport()
+                  toast.success('Sales analysis report generated')
+                } catch (error) {
+                  toast.error('Failed to generate sales analysis report')
+                }
               }}
             >
               <ChartBarIcon className="h-4 w-4 mr-2" />
@@ -719,6 +726,149 @@ export default function CustomersPage() {
               notes: selectedCustomer.notes,
             }}
           />
+        )}
+      </Modal>
+
+      {/* Customer Details Modal */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title={`Customer Details - ${selectedCustomer?.customer_code}`}
+        size="xl"
+      >
+        {selectedCustomer && (
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer Code</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedCustomer.customer_code}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer Name</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedCustomer.customer_name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Contact Person</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedCustomer.contact_person || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Customer Type</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedCustomer.customer_type}</p>
+              </div>
+            </div>
+
+            {/* Address Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Address Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Address</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedCustomer.address_line1}
+                    {selectedCustomer.address_line2 && <><br />{selectedCustomer.address_line2}</>}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">City, State</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedCustomer.city}{selectedCustomer.state && `, ${selectedCustomer.state}`}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Postal Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.postal_code}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Country</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.country}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Contact Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.email || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Financial Information</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Current Balance</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: selectedCustomer.currency_code || 'USD',
+                    }).format(selectedCustomer.balance || 0)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Credit Limit</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedCustomer.credit_limit ? new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: selectedCustomer.currency_code || 'USD',
+                    }).format(selectedCustomer.credit_limit) : 'No Limit'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Payment Terms</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.payment_terms}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Currency</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.currency_code}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Discount %</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.discount_percent}%</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Sales Rep</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedCustomer.sales_rep || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {selectedCustomer.notes && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Notes</h3>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedCustomer.notes}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="border-t pt-4 flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDetailsModal(false)
+                  setShowEditModal(true)
+                }}
+              >
+                Edit Customer
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
 

@@ -100,9 +100,11 @@ export default function JournalEntriesPage() {
   const [showLinesModal, setShowLinesModal] = useState(false)
   const [showAddLineModal, setShowAddLineModal] = useState(false)
   const [showReversalModal, setShowReversalModal] = useState(false)
+  const [showBatchPostModal, setShowBatchPostModal] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null)
   const [entryToDelete, setEntryToDelete] = useState<JournalEntry | null>(null)
   const [entryToReverse, setEntryToReverse] = useState<JournalEntry | null>(null)
+  const [selectedEntries, setSelectedEntries] = useState<Set<number>>(new Set())
 
   const queryClient = useQueryClient()
   const { canEdit, canDelete } = useAuth()
@@ -206,7 +208,70 @@ export default function JournalEntriesPage() {
     },
   })
 
+  // Mutation for batch posting
+  const batchPostMutation = useMutation({
+    mutationFn: journalEntriesApi.batchPost,
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['journalEntries'] })
+      toast.success(`Successfully posted ${data.posted_count || selectedEntries.size} journal entries`)
+      setSelectedEntries(new Set())
+      setShowBatchPostModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to post journal entries')
+    },
+  })
+
   const columns: ColumnDef<JournalEntry>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <input
+          type="checkbox"
+          checked={table.getIsAllPageRowsSelected()}
+          onChange={(e) => {
+            const allRows = table.getRowModel().rows
+            const newSelection = new Set(selectedEntries)
+            
+            if (e.target.checked) {
+              allRows.forEach(row => {
+                if (row.original.posting_status === 'PENDING' && row.original.is_balanced) {
+                  newSelection.add(row.original.id!)
+                }
+              })
+            } else {
+              allRows.forEach(row => {
+                newSelection.delete(row.original.id!)
+              })
+            }
+            setSelectedEntries(newSelection)
+          }}
+          className="rounded border-gray-300"
+        />
+      ),
+      cell: ({ row }) => {
+        const entry = row.original
+        const canSelect = entry.posting_status === 'PENDING' && entry.is_balanced && entry.id
+        
+        return (
+          <input
+            type="checkbox"
+            checked={selectedEntries.has(entry.id!)}
+            onChange={(e) => {
+              const newSelection = new Set(selectedEntries)
+              if (e.target.checked) {
+                newSelection.add(entry.id!)
+              } else {
+                newSelection.delete(entry.id!)
+              }
+              setSelectedEntries(newSelection)
+            }}
+            disabled={!canSelect}
+            className="rounded border-gray-300"
+          />
+        )
+      },
+    },
     {
       accessorKey: 'journal_number',
       header: 'Journal Number',
@@ -551,6 +616,12 @@ export default function JournalEntriesPage() {
     }
   }
 
+  const handleBatchPost = () => {
+    if (selectedEntries.size > 0) {
+      batchPostMutation.mutate(Array.from(selectedEntries))
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -602,11 +673,10 @@ export default function JournalEntriesPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                toast('Batch posting coming soon')
-              }}
+              onClick={() => setShowBatchPostModal(true)}
+              disabled={selectedEntries.size === 0}
             >
-              Batch Post
+              Batch Post ({selectedEntries.size})
             </Button>
             <Button 
               variant="outline"
@@ -851,6 +921,83 @@ export default function JournalEntriesPage() {
             submitLabel="Reverse Entry"
             loading={reverseMutation.isPending}
           />
+        </div>
+      </Modal>
+
+      {/* Batch Post Modal */}
+      <Modal
+        isOpen={showBatchPostModal}
+        onClose={() => setShowBatchPostModal(false)}
+        title="Batch Post Journal Entries"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h3 className="text-sm font-medium text-blue-800">Batch Posting Confirmation</h3>
+            <p className="mt-2 text-sm text-blue-700">
+              You are about to post {selectedEntries.size} journal entries. Once posted, these entries cannot be modified.
+            </p>
+          </div>
+
+          {/* Summary of selected entries */}
+          <div className="max-h-60 overflow-y-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Journal Number
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Date
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Description
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {journalEntries?.filter(entry => selectedEntries.has(entry.id!)).map((entry) => (
+                  <tr key={entry.id} className="text-sm">
+                    <td className="px-4 py-2 font-medium text-gray-900">
+                      {entry.journal_number}
+                    </td>
+                    <td className="px-4 py-2 text-gray-500">
+                      {new Date(entry.journal_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-2 text-gray-900 max-w-xs truncate">
+                      {entry.description}
+                    </td>
+                    <td className="px-4 py-2 text-gray-900">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      }).format(entry.total_debits || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowBatchPostModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBatchPost}
+              loading={batchPostMutation.isPending}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Post {selectedEntries.size} Entries
+            </Button>
+          </div>
         </div>
       </Modal>
 

@@ -608,3 +608,73 @@ class SalesOrderService:
             line.quantity_allocated = Decimal('0')
             line.quantity_back_order = Decimal('0')
             line.line_status = "CANCELLED"
+    
+    def ship_sales_order(
+        self, 
+        order_id: int, 
+        tracking_number: Optional[str] = None,
+        carrier: Optional[str] = None,
+        shipping_date: Optional[date] = None,
+        user_id: int = None
+    ) -> Dict:
+        """Ship sales order"""
+        sales_order = self.get_sales_order(order_id)
+        
+        if not sales_order:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Sales order not found"
+            )
+        
+        if sales_order.order_status not in [SalesOrderStatus.APPROVED, SalesOrderStatus.CONFIRMED]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order must be approved or confirmed before shipping"
+            )
+        
+        if sales_order.order_status == SalesOrderStatus.SHIPPED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Order has already been shipped"
+            )
+        
+        # Update order status
+        sales_order.order_status = SalesOrderStatus.SHIPPED
+        sales_order.shipping_date = shipping_date or date.today()
+        sales_order.tracking_number = tracking_number
+        sales_order.carrier = carrier
+        sales_order.updated_by = str(user_id)
+        sales_order.updated_at = datetime.now()
+        
+        # Update stock quantities (reduce on hand, increase allocated)
+        for line in sales_order.order_lines:
+            stock_item = self.db.query(StockItem).filter_by(
+                stock_code=line.stock_code
+            ).first()
+            
+            if stock_item:
+                # Reduce on hand quantity
+                stock_item.quantity_on_hand -= line.quantity
+                # Reduce allocated quantity
+                stock_item.quantity_allocated -= line.quantity
+                line.quantity_shipped = line.quantity
+                line.line_status = "SHIPPED"
+        
+        self.db.commit()
+        
+        # Audit trail
+        self.audit.log_transaction(
+            table_name="sales_orders",
+            record_id=sales_order.id,
+            operation="SHIP",
+            user_id=user_id,
+            details=f"Sales order {sales_order.order_number} shipped. Tracking: {tracking_number}, Carrier: {carrier}"
+        )
+        
+        return {
+            "order_number": sales_order.order_number,
+            "shipping_date": sales_order.shipping_date.isoformat(),
+            "tracking_number": tracking_number,
+            "carrier": carrier,
+            "message": f"Order {sales_order.order_number} shipped successfully"
+        }

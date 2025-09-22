@@ -56,6 +56,13 @@ const orderLineSchema = z.object({
   notes: z.string().optional(),
 })
 
+// Email schema
+const emailSchema = z.object({
+  to: z.string().email('Valid email address is required'),
+  subject: z.string().min(1, 'Subject is required'),
+  message: z.string().optional(),
+})
+
 const getStatusBadge = (status: string) => {
   switch (status) {
     case 'DRAFT':
@@ -81,7 +88,11 @@ export default function PurchaseOrdersPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showLinesModal, setShowLinesModal] = useState(false)
   const [showAddLineModal, setShowAddLineModal] = useState(false)
+  const [showEditLineModal, setShowEditLineModal] = useState(false)
+  const [showGoodsReceiptModal, setShowGoodsReceiptModal] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null)
+  const [selectedLine, setSelectedLine] = useState<PurchaseOrderLine | null>(null)
   const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null)
   
   const queryClient = useQueryClient()
@@ -187,6 +198,60 @@ export default function PurchaseOrdersPage() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.detail || 'Failed to add line')
+    },
+  })
+
+  // Mutation for updating order line
+  const updateLineMutation = useMutation({
+    mutationFn: ({ orderId, lineId, data }: { orderId: number; lineId: number; data: Partial<PurchaseOrderLine> }) =>
+      purchaseOrdersApi.updateLine(orderId, lineId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] })
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrderLines'] })
+      toast.success('Line updated successfully')
+      setShowEditLineModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update line')
+    },
+  })
+
+  // Mutation for goods receipt
+  const goodsReceiptMutation = useMutation({
+    mutationFn: ({ orderId, receiptData }: { orderId: number; receiptData: any }) =>
+      purchaseOrdersApi.receiveGoods(orderId, receiptData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] })
+      toast.success('Goods receipt created successfully')
+      setShowGoodsReceiptModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to create goods receipt')
+    },
+  })
+
+  // Mutation for converting to invoice
+  const convertToInvoiceMutation = useMutation({
+    mutationFn: purchaseOrdersApi.convertToInvoice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['purchaseOrders'] })
+      toast.success('Purchase order converted to invoice successfully')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to convert to invoice')
+    },
+  })
+
+  // Mutation for emailing order
+  const emailMutation = useMutation({
+    mutationFn: ({ orderId, emailData }: { orderId: number; emailData: any }) =>
+      purchaseOrdersApi.email(orderId, emailData),
+    onSuccess: () => {
+      toast.success('Purchase order emailed successfully')
+      setShowEmailModal(false)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to email purchase order')
     },
   })
 
@@ -337,7 +402,8 @@ export default function PurchaseOrdersPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  toast('Goods receipt functionality coming soon')
+                  setSelectedOrder(order)
+                  setShowGoodsReceiptModal(true)
                 }}
                 title="Receive Goods"
               >
@@ -364,7 +430,8 @@ export default function PurchaseOrdersPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  toast('Email functionality coming soon')
+                  setSelectedOrder(order)
+                  setShowEmailModal(true)
                 }}
                 title="Email Order"
               >
@@ -375,9 +442,7 @@ export default function PurchaseOrdersPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  toast('Convert to invoice coming soon')
-                }}
+                onClick={() => handleConvertToInvoice(order)}
                 title="Convert to Invoice"
               >
                 <DocumentDuplicateIcon className="h-4 w-4" />
@@ -523,6 +588,26 @@ export default function PurchaseOrdersPage() {
     },
   ]
 
+  const emailFormFields: FormField[] = [
+    {
+      name: 'to',
+      label: 'To Email',
+      type: 'email',
+      required: true,
+    },
+    {
+      name: 'subject',
+      label: 'Subject',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'message',
+      label: 'Message',
+      type: 'textarea',
+    },
+  ]
+
   const handleCreateOrder = (data: any) => {
     const orderData = {
       ...data,
@@ -586,6 +671,58 @@ export default function PurchaseOrdersPage() {
         notes: data.notes,
       }
       addLineMutation.mutate({ orderId: selectedOrder.id, line: lineData })
+    }
+  }
+
+  const handleEditLine = (data: any) => {
+    if (selectedOrder?.id && selectedLine?.id) {
+      const lineData = {
+        stock_code: data.stock_code,
+        description: stockItems?.find(i => i.stock_code === data.stock_code)?.description || '',
+        quantity: parseFloat(data.quantity),
+        unit_price: parseFloat(data.unit_price),
+        discount_percent: parseFloat(data.discount_percent || '0'),
+        vat_code: data.vat_code,
+        delivery_date: data.delivery_date,
+        notes: data.notes,
+      }
+      updateLineMutation.mutate({ 
+        orderId: selectedOrder.id, 
+        lineId: selectedLine.id, 
+        data: lineData 
+      })
+    }
+  }
+
+  const handleGoodsReceipt = (data: any) => {
+    if (selectedOrder?.id) {
+      const receiptData = {
+        lines: selectedOrder.order_lines.map(line => ({
+          line_id: line.id!,
+          received_quantity: line.quantity,
+          location: data.location,
+          batch_number: data.batch_number,
+        })),
+        receipt_date: data.receipt_date || new Date().toISOString().split('T')[0],
+        receipt_ref: data.receipt_ref,
+        notes: data.notes,
+      }
+      goodsReceiptMutation.mutate({ orderId: selectedOrder.id, receiptData })
+    }
+  }
+
+  const handleConvertToInvoice = (order: PurchaseOrder) => {
+    if (order.id) {
+      convertToInvoiceMutation.mutate(order.id)
+    }
+  }
+
+  const handleEmailOrder = (data: any) => {
+    if (selectedOrder?.id) {
+      emailMutation.mutate({ 
+        orderId: selectedOrder.id, 
+        emailData: data 
+      })
     }
   }
 
@@ -792,7 +929,8 @@ export default function PurchaseOrdersPage() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            toast('Edit line coming soon')
+                            setSelectedLine(line)
+                            setShowEditLineModal(true)
                           }}
                         >
                           <PencilIcon className="h-4 w-4" />
@@ -828,6 +966,84 @@ export default function PurchaseOrdersPage() {
           submitLabel="Add Line"
           loading={addLineMutation.isPending}
         />
+      </Modal>
+
+      {/* Edit Line Modal */}
+      <Modal
+        isOpen={showEditLineModal}
+        onClose={() => setShowEditLineModal(false)}
+        title="Edit Order Line"
+        size="lg"
+      >
+        {selectedLine && (
+          <FormBuilder
+            fields={lineFormFields}
+            onSubmit={handleEditLine}
+            onCancel={() => setShowEditLineModal(false)}
+            schema={orderLineSchema}
+            submitLabel="Update Line"
+            loading={updateLineMutation.isPending}
+            defaultValues={{
+              stock_code: selectedLine.stock_code,
+              quantity: selectedLine.quantity.toString(),
+              unit_price: selectedLine.unit_price.toString(),
+              discount_percent: selectedLine.discount_percent?.toString() || '0',
+              vat_code: selectedLine.vat_code,
+              delivery_date: selectedLine.delivery_date,
+              notes: selectedLine.notes,
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* Email Modal */}
+      <Modal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        title={`Email Purchase Order - ${selectedOrder?.order_number}`}
+        size="lg"
+      >
+        {selectedOrder && (
+          <div className="space-y-4">
+            {/* Order Summary */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-sm text-gray-700 mb-2">Order Summary</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Order Number:</span> {selectedOrder.order_number}
+                </div>
+                <div>
+                  <span className="text-gray-500">Supplier:</span> {selectedOrder.supplier_name}
+                </div>
+                <div>
+                  <span className="text-gray-500">Order Date:</span> {new Date(selectedOrder.order_date).toLocaleDateString()}
+                </div>
+                <div>
+                  <span className="text-gray-500">Total Amount:</span> {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: selectedOrder.currency_code || 'USD',
+                  }).format(selectedOrder.total_amount || 0)}
+                </div>
+              </div>
+            </div>
+
+            <FormBuilder
+              fields={emailFormFields}
+              onSubmit={handleEmailOrder}
+              onCancel={() => setShowEmailModal(false)}
+              schema={emailSchema}
+              submitLabel="Send Email"
+              loading={emailMutation.isPending}
+              defaultValues={{
+                subject: `Purchase Order ${selectedOrder.order_number}`,
+                message: `Dear Supplier,\n\nPlease find attached our purchase order ${selectedOrder.order_number} dated ${new Date(selectedOrder.order_date).toLocaleDateString()}.\n\nOrder Details:\n- Total Amount: ${new Intl.NumberFormat('en-US', {
+                  style: 'currency',
+                  currency: selectedOrder.currency_code || 'USD',
+                }).format(selectedOrder.total_amount || 0)}\n- Delivery Date: ${selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString() : 'To be confirmed'}\n\nPlease confirm receipt of this order.\n\nThank you.`,
+              }}
+            />
+          </div>
+        )}
       </Modal>
 
       {/* Delete Confirmation Dialog */}

@@ -179,3 +179,32 @@ def print_purchase_order(
     service = PurchaseOrderService(db)
     document = service.generate_purchase_order_document(order_id)
     return {"document_url": document}
+
+
+@router.post("/{order_id}/receive")
+def receive_goods(
+    order_id: int,
+    receipt_data: Optional[dict] = None,
+    db: Session = Depends(get_db),
+    current_user_id: int = 1  # TODO: Get from auth
+):
+    """Create goods receipt for purchase order"""
+    service = PurchaseOrderService(db)
+    receipt = service.create_goods_receipt(
+        order_id=order_id,
+        receipt_data=receipt_data or {},
+        user_id=current_user_id
+    )
+    return {"message": "Goods receipt created successfully", "receipt_number": receipt.get("receipt_number")}
+
+
+@router.post("/{order_id}/convert-to-invoice")
+def convert_to_invoice(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user_id: int = 1  # TODO: Get from auth
+):
+    """Convert purchase order to invoice"""
+    service = PurchaseOrderService(db)
+    invoice = service.convert_to_invoice(order_id, current_user_id)
+    return {"message": "Purchase order converted to invoice", "invoice_number": invoice.get("invoice_number")}

@@ -23,7 +23,7 @@ import {
   AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
-import { StockItem, stockItemsApi } from '@/lib/api/stock-items'
+import { StockItem, StockMovement, stockItemsApi } from '@/lib/api/stock-items'
 import toast from 'react-hot-toast'
 import { useAuth } from '@/lib/auth/context'
 
@@ -87,6 +87,8 @@ export default function StockItemsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
+  const [showDetailsModal, setShowDetailsModal] = useState(false)
+  const [showMovementsModal, setShowMovementsModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null)
   const [itemToDelete, setItemToDelete] = useState<StockItem | null>(null)
 
@@ -97,6 +99,13 @@ export default function StockItemsPage() {
   const { data: stockItems, isLoading, error } = useQuery({
     queryKey: ['stockItems'],
     queryFn: () => stockItemsApi.getAll(),
+  })
+
+  // Query for stock movements
+  const { data: stockMovements } = useQuery({
+    queryKey: ['stockMovements', selectedItem?.id],
+    queryFn: () => selectedItem?.id ? stockItemsApi.getMovements(selectedItem.id) : null,
+    enabled: !!selectedItem?.id && showMovementsModal,
   })
 
   // Mutation for creating stock item
@@ -304,7 +313,8 @@ export default function StockItemsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                toast('Stock item details view coming soon')
+                setSelectedItem(item)
+                setShowDetailsModal(true)
               }}
               title="View Details"
             >
@@ -327,7 +337,8 @@ export default function StockItemsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                toast('Stock movements coming soon')
+                setSelectedItem(item)
+                setShowMovementsModal(true)
               }}
               title="View Movements"
             >
@@ -819,6 +830,267 @@ export default function StockItemsPage() {
         )}
       </Modal>
 
+      {/* Stock Item Details Modal */}
+      <Modal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        title={`Stock Item Details - ${selectedItem?.stock_code}`}
+        size="xl"
+      >
+        {selectedItem && (
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Stock Code</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedItem.stock_code}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedItem.description}</p>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Long Description</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedItem.long_description || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Category</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedItem.category_code || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Unit of Measure</label>
+                <p className="mt-1 text-sm text-gray-900">{selectedItem.unit_of_measure}</p>
+              </div>
+            </div>
+
+            {/* Stock Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Stock Information</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Quantity on Hand</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {selectedItem.quantity_on_hand.toFixed(2)} {selectedItem.unit_of_measure}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Quantity Allocated</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {(selectedItem.quantity_allocated || 0).toFixed(2)} {selectedItem.unit_of_measure}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Available Quantity</label>
+                  <p className="mt-1 text-sm font-medium text-green-600">
+                    {(selectedItem.quantity_on_hand - (selectedItem.quantity_allocated || 0)).toFixed(2)} {selectedItem.unit_of_measure}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Reorder Level</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.reorder_level ? `${selectedItem.reorder_level.toFixed(2)} ${selectedItem.unit_of_measure}` : 'Not Set'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Reorder Quantity</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.reorder_quantity ? `${selectedItem.reorder_quantity.toFixed(2)} ${selectedItem.unit_of_measure}` : 'Not Set'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stock Status</label>
+                  <div className="mt-1">{getStockStatusBadge(selectedItem)}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Location Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Location</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.location || 'Default'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Bin Location</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.bin_location || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Pricing Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Pricing Information</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Unit Cost</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    }).format(selectedItem.unit_cost)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Selling Price</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    }).format(selectedItem.selling_price)}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Margin</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {((selectedItem.selling_price - selectedItem.unit_cost) / selectedItem.selling_price * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">VAT Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.vat_code}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Stock Value</label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                    }).format(selectedItem.quantity_on_hand * selectedItem.unit_cost)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Supplier & Manufacturing Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Supplier & Manufacturing</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Default Supplier</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.supplier_code || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Lead Time</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.lead_time_days ? `${selectedItem.lead_time_days} days` : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Manufacturer Code</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.manufacturer_code || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Manufacturer Part No</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.manufacturer_part_no || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Physical Properties */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Physical Properties</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Weight</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.weight ? `${selectedItem.weight} kg` : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Dimensions</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.dimensions || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Barcode</label>
+                  <p className="mt-1 text-sm text-gray-900">{selectedItem.barcode || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Settings */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Settings</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Service Item</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.is_service_item ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Allow Negative Stock</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.allow_negative_stock ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Track Serial Numbers</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.track_serial_numbers ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Track Batch Numbers</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.track_batch_numbers ? 'Yes' : 'No'}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Status</label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedItem.is_active ? (
+                      <Badge variant="success">Active</Badge>
+                    ) : (
+                      <Badge variant="default">Inactive</Badge>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {selectedItem.notes && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Notes</h3>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedItem.notes}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="border-t pt-4 flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDetailsModal(false)
+                  setShowEditModal(true)
+                }}
+              >
+                Edit Item
+              </Button>
+              {canEdit('stock') && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDetailsModal(false)
+                    setShowAdjustmentModal(true)
+                  }}
+                >
+                  Adjust Stock
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Stock Adjustment Modal */}
       <Modal
         isOpen={showAdjustmentModal}
@@ -853,6 +1125,126 @@ export default function StockItemsPage() {
           submitLabel="Adjust Stock"
           loading={adjustStockMutation.isPending}
         />
+      </Modal>
+
+      {/* Stock Movements Modal */}
+      <Modal
+        isOpen={showMovementsModal}
+        onClose={() => setShowMovementsModal(false)}
+        title={`Stock Movements - ${selectedItem?.stock_code}`}
+        size="xl"
+      >
+        {selectedItem && (
+          <div className="space-y-4">
+            {/* Item Summary */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-sm text-gray-700 mb-2">Current Stock Information</h4>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Item:</span> {selectedItem.description}
+                </div>
+                <div>
+                  <span className="text-gray-500">Current Stock:</span> {selectedItem.quantity_on_hand} {selectedItem.unit_of_measure}
+                </div>
+                <div>
+                  <span className="text-gray-500">Location:</span> {selectedItem.location || 'Default'}
+                </div>
+              </div>
+            </div>
+
+            {/* Movements Table */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Type
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Document Ref
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Unit Cost
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Location
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Notes
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {stockMovements && stockMovements.length > 0 ? (
+                    stockMovements.map((movement) => (
+                      <tr key={movement.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(movement.movement_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <Badge 
+                            variant={
+                              movement.movement_type === 'IN' ? 'success' :
+                              movement.movement_type === 'OUT' ? 'danger' :
+                              movement.movement_type === 'ADJUST' ? 'warning' :
+                              'default'
+                            }
+                          >
+                            {movement.movement_type}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {movement.document_ref || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <span className={
+                            movement.quantity > 0 ? 'text-green-600' : 'text-red-600'
+                          }>
+                            {movement.quantity > 0 ? '+' : ''}{movement.quantity.toFixed(2)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {movement.unit_cost ? new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                          }).format(movement.unit_cost) : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {movement.location || 'Default'}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-500">
+                          {movement.notes || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                        No movements found for this item
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowMovementsModal(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Delete Confirmation Dialog */}

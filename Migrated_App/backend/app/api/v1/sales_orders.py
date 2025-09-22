@@ -141,6 +141,26 @@ async def allocate_stock(
     return service.allocate_stock(order_id, current_user.id)
 
 
+@router.post("/{order_id}/ship")
+async def ship_sales_order(
+    order_id: int,
+    tracking_number: Optional[str] = None,
+    carrier: Optional[str] = None,
+    shipping_date: Optional[date] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Ship sales order"""
+    service = SalesOrderService(db)
+    return service.ship_sales_order(
+        order_id=order_id,
+        tracking_number=tracking_number,
+        carrier=carrier,
+        shipping_date=shipping_date or date.today(),
+        user_id=current_user.id
+    )
+
+
 @router.get("/search", response_model=Dict[str, Any])
 async def search_sales_orders(
     customer_code: Optional[str] = None,

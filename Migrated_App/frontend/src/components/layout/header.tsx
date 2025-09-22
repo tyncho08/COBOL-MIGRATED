@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react'
 import { Menu, Transition } from '@headlessui/react'
-import { BellIcon, UserCircleIcon, PowerIcon, UserIcon, CogIcon } from '@heroicons/react/24/outline'
+import { BellIcon, UserCircleIcon, PowerIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
 import { useAuth } from '@/lib/auth/context'
 import Link from 'next/link'
@@ -78,37 +78,6 @@ export default function Header() {
                     </p>
                   </div>
 
-                  {/* Profile Link */}
-                  <Menu.Item>
-                    {({ active }) => (
-                      <Link
-                        href="/profile"
-                        className={clsx(
-                          active ? 'bg-gray-100' : '',
-                          'flex items-center px-4 py-2 text-sm text-gray-700'
-                        )}
-                      >
-                        <UserIcon className="mr-3 h-4 w-4" />
-                        Your Profile
-                      </Link>
-                    )}
-                  </Menu.Item>
-
-                  {/* Change Password */}
-                  <Menu.Item>
-                    {({ active }) => (
-                      <Link
-                        href="/change-password"
-                        className={clsx(
-                          active ? 'bg-gray-100' : '',
-                          'flex items-center px-4 py-2 text-sm text-gray-700'
-                        )}
-                      >
-                        <CogIcon className="mr-3 h-4 w-4" />
-                        Change Password
-                      </Link>
-                    )}
-                  </Menu.Item>
 
                   {/* Permissions Info */}
                   <Menu.Item>

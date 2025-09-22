@@ -85,6 +85,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = localStorage.getItem('access_token')
       if (token) {
         setAccessToken(token)
+        // Small delay to ensure token is set
+        await new Promise(resolve => setTimeout(resolve, 100))
         try {
           await loadUserData()
         } catch (error) {
@@ -146,6 +148,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('refresh_token', response.refresh_token)
       }
       setAccessToken(response.access_token)
+
+      // Small delay to ensure token is set
+      await new Promise(resolve => setTimeout(resolve, 100))
 
       // Load user data
       await loadUserData()

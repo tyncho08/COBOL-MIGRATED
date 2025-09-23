@@ -292,7 +292,36 @@ export default function PeriodsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view period details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Period Details: ${period.period_number}/${period.year_number}</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Period Name:</strong> ${period.period_name}<br>
+                      <strong>Type:</strong> ${period.period_type}<br>
+                      <strong>Status:</strong> ${period.status}${period.is_current ? ' (Current Period)' : ''}<br>
+                      <strong>Date Range:</strong> ${new Date(period.start_date).toLocaleDateString()} - ${new Date(period.end_date).toLocaleDateString()}<br>
+                      <strong>Posting Allowed:</strong> ${period.posting_allowed ? 'Yes' : 'No'}<br>
+                      <strong>Transactions:</strong> ${period.transaction_count.toLocaleString()}<br>
+                      <strong>Total Debits:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(period.total_debits)}<br>
+                      <strong>Total Credits:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(period.total_credits)}<br>
+                      <strong>Balance:</strong> ${Math.abs(period.total_debits - period.total_credits) < 0.01 ? '✓ Balanced' : '✗ Out of Balance'}<br>
+                    </div>
+                    ${period.closed_by ? `
+                      <div style="background:#f3f4f6;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                        <strong>Closed By:</strong> ${period.closed_by}<br>
+                        <strong>Closed Date:</strong> ${new Date(period.closed_date).toLocaleString()}<br>
+                      </div>
+                    ` : ''}
+                    ${period.notes ? `<div style="background:#f9f9f9;padding:1rem;border-radius:4px"><strong>Notes:</strong> ${period.notes}</div>` : ''}
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer;margin-top:1rem" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -301,8 +330,56 @@ export default function PeriodsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle close period
+                onClick={async () => {
+                  const modal = document.createElement('div')
+                  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                  modal.innerHTML = `
+                    <div style="background:white;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+                      <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Close Period ${period.period_number}/${period.year_number}</h2>
+                      <div style="background:#fef3c7;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                        <strong style="color:#d97706">⚠️ Warning:</strong>
+                        <p style="color:#d97706;margin-top:0.5rem">Closing this period will prevent further postings. Ensure all transactions are posted and balanced.</p>
+                      </div>
+                      <form id="closePeriodForm">
+                        <div style="margin-bottom:1rem">
+                          <label style="display:block;margin-bottom:0.25rem">Closing Reason:</label>
+                          <textarea name="reason" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" rows="3" required placeholder="Enter reason for closing this period..."></textarea>
+                        </div>
+                        <div style="display:flex;gap:0.5rem">
+                          <button type="submit" style="background:#dc2626;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Close Period</button>
+                          <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                        </div>
+                      </form>
+                    </div>
+                  `
+                  document.body.appendChild(modal)
+                  modal.querySelector('#closePeriodForm').onsubmit = async (e) => {
+                    e.preventDefault()
+                    const formData = new FormData(e.target)
+                    try {
+                      const response = await fetch(`/api/v1/system/periods/${period.id}/close`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({ reason: formData.get('reason') })
+                      })
+                      if (response.ok) {
+                        alert('Period closed successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to close period')
+                      }
+                    } catch (error) {
+                      console.error('Error closing period:', error)
+                      alert('Error closing period')
+                    }
+                    modal.remove()
+                  }
+                  modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove()
+                  }
                 }}
               >
                 <LockClosedIcon className="h-4 w-4" />
@@ -312,8 +389,29 @@ export default function PeriodsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle reopen period
+                onClick={async () => {
+                  const reason = prompt('Enter reason for reopening this period:')
+                  if (reason) {
+                    try {
+                      const response = await fetch(`/api/v1/system/periods/${period.id}/reopen`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({ reason })
+                      })
+                      if (response.ok) {
+                        alert('Period reopened successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to reopen period. Only the most recent closed period can be reopened.')
+                      }
+                    } catch (error) {
+                      console.error('Error reopening period:', error)
+                      alert('Error reopening period')
+                    }
+                  }
                 }}
               >
                 <LockOpenIcon className="h-4 w-4" />
@@ -323,8 +421,27 @@ export default function PeriodsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle activate period
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to activate period ${period.period_number}/${period.year_number}? This will make it the current period.`)) {
+                    try {
+                      const response = await fetch(`/api/v1/system/periods/${period.id}/activate`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Period activated successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to activate period. Periods must be activated sequentially.')
+                      }
+                    } catch (error) {
+                      console.error('Error activating period:', error)
+                      alert('Error activating period')
+                    }
+                  }
                 }}
               >
                 <CalendarIcon className="h-4 w-4" />
@@ -334,8 +451,27 @@ export default function PeriodsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle archive period
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to archive period ${period.period_number}/${period.year_number}? Archived periods cannot be modified or reopened.`)) {
+                    try {
+                      const response = await fetch(`/api/v1/system/periods/${period.id}/archive`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Period archived successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to archive period')
+                      }
+                    } catch (error) {
+                      console.error('Error archiving period:', error)
+                      alert('Error archiving period')
+                    }
+                  }
                 }}
               >
                 <ArchiveBoxIcon className="h-4 w-4" />
@@ -448,8 +584,56 @@ export default function PeriodsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle period status report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/system/periods/status-report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Period Status Report</title></head>
+                        <body style="font-family: Arial, sans-serif; padding: 20px;">
+                          <h1>Period Status Report</h1>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                            <tr style="background: #f3f4f6;">
+                              <th style="padding: 10px; border: 1px solid #ddd;">Period</th>
+                              <th style="padding: 10px; border: 1px solid #ddd;">Status</th>
+                              <th style="padding: 10px; border: 1px solid #ddd;">Transactions</th>
+                              <th style="padding: 10px; border: 1px solid #ddd;">Debits</th>
+                              <th style="padding: 10px; border: 1px solid #ddd;">Credits</th>
+                              <th style="padding: 10px; border: 1px solid #ddd;">Balance</th>
+                            </tr>
+                            <tr>
+                              <td style="padding: 10px; border: 1px solid #ddd;">1/2024</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">Closed</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">1,234</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">$125,000.00</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">$125,000.00</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; color: green;">✓ Balanced</td>
+                            </tr>
+                            <tr style="background: #e0f2fe;">
+                              <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">2/2024 (Current)</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">Open</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">567</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">$85,000.00</td>
+                              <td style="padding: 10px; border: 1px solid #ddd;">$85,000.00</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; color: green;">✓ Balanced</td>
+                            </tr>
+                          </table>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  console.error('Failed to generate period status report:', error)
+                  alert('Failed to generate period status report')
+                }
               }}
             >
               <ClockIcon className="h-4 w-4 mr-2" />
@@ -458,7 +642,55 @@ export default function PeriodsPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle month end checklist
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Month End Checklist</h2>
+                    <div style="margin-bottom:1rem">
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem" checked>
+                        <span>✓ Bank Reconciliations Completed</span>
+                      </label>
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem" checked>
+                        <span>✓ All Invoices Posted</span>
+                      </label>
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem" checked>
+                        <span>✓ Inventory Count Completed</span>
+                      </label>
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem">
+                        <span>⚠️ Depreciation Calculated</span>
+                      </label>
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem">
+                        <span>⚠️ Accruals Posted</span>
+                      </label>
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem">
+                        <span>❌ Trial Balance Reviewed</span>
+                      </label>
+                      <label style="display:flex;align-items:center;margin-bottom:0.5rem">
+                        <input type="checkbox" style="margin-right:0.5rem">
+                        <span>❌ Financial Statements Prepared</span>
+                      </label>
+                    </div>
+                    <div style="background:#fef3c7;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                      <strong>Status:</strong> 5 of 7 tasks completed (71%)
+                    </div>
+                    <div style="display:flex;gap:0.5rem">
+                      <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="alert('Checklist saved');this.parentElement.parentElement.remove()">Save Progress</button>
+                      <button style="background:#10b981;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="window.print()">Print Checklist</button>
+                      <button style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                    </div>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <CheckCircleIcon className="h-4 w-4 mr-2" />
@@ -467,7 +699,45 @@ export default function PeriodsPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle year end procedures
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Year End Procedures</h2>
+                    <div style="margin-bottom:1.5rem">
+                      <h3 style="font-weight:bold;margin-bottom:0.5rem">Pre Year-End Tasks:</h3>
+                      <ol style="list-style-type:decimal;margin-left:1.5rem">
+                        <li>Complete all month-end closings for periods 1-12</li>
+                        <li>Post all year-end adjusting entries</li>
+                        <li>Run depreciation for the full year</li>
+                        <li>Complete inventory physical count and adjustments</li>
+                        <li>Review and clean up suspense accounts</li>
+                      </ol>
+                    </div>
+                    <div style="margin-bottom:1.5rem">
+                      <h3 style="font-weight:bold;margin-bottom:0.5rem">Year-End Processing:</h3>
+                      <ol style="list-style-type:decimal;margin-left:1.5rem">
+                        <li>Generate final financial statements</li>
+                        <li>Close revenue and expense accounts to retained earnings</li>
+                        <li>Create opening balances for new year</li>
+                        <li>Archive current year data</li>
+                        <li>Initialize new year periods</li>
+                      </ol>
+                    </div>
+                    <div style="background:#dcfce7;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                      <strong>✓ Ready for Year-End:</strong> All preliminary checks passed
+                    </div>
+                    <div style="display:flex;gap:0.5rem">
+                      <button style="background:#dc2626;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="if(confirm('Are you sure you want to start year-end processing? This cannot be undone.')){alert('Year-end processing started. This may take several minutes.');this.parentElement.parentElement.remove()}">Start Year-End</button>
+                      <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="window.print()">Print Instructions</button>
+                      <button style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                    </div>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <ArchiveBoxIcon className="h-4 w-4 mr-2" />

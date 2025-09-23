@@ -491,8 +491,25 @@ export default function AuditTrailPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle export audit log
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/system/audit/export', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
+                } catch (error) {
+                  alert('Failed to export audit log')
+                }
               }}
             >
               <DocumentTextIcon className="h-4 w-4 mr-2" />
@@ -500,8 +517,35 @@ export default function AuditTrailPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle security report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/system/audit/security-report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Security Report</title></head>
+                        <body>
+                          <h1>Security Report</h1>
+                          <h2>Failed Login Attempts</h2>
+                          <p>Total: ${data.failed_logins}</p>
+                          <h2>Suspicious Activities</h2>
+                          <p>Total: ${data.suspicious_activities}</p>
+                          <h2>High Risk Operations</h2>
+                          <p>Total: ${data.high_risk_operations}</p>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  alert('Failed to generate security report')
+                }
               }}
             >
               <ShieldCheckIcon className="h-4 w-4 mr-2" />
@@ -509,8 +553,35 @@ export default function AuditTrailPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle user activity
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/system/audit/user-activity', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>User Activity Report</title></head>
+                        <body>
+                          <h1>User Activity Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>User</th><th>Last Login</th><th>Total Actions</th><th>Failed Attempts</th></tr>
+                            ${data.user_activities?.map((user: any) => 
+                              `<tr><td>${user.user_name}</td><td>${user.last_login}</td><td>${user.total_actions}</td><td>${user.failed_attempts}</td></tr>`
+                            ).join('')}
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  alert('Failed to generate user activity report')
+                }
               }}
             >
               <UserIcon className="h-4 w-4 mr-2" />

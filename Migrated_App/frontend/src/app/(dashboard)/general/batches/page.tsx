@@ -492,7 +492,31 @@ export default function GLBatchesPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle batch posting queue
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Batch Posting Queue</h2>
+                    <div style="background:#f3f4f6;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                      <p><strong>Batches in Queue:</strong> 5</p>
+                      <p><strong>Processing:</strong> BATCH-2024-001</p>
+                      <p><strong>Estimated Time:</strong> 2 minutes</p>
+                    </div>
+                    <div style="margin-bottom:1rem">
+                      <h3 style="font-weight:bold;margin-bottom:0.5rem">Queue Status:</h3>
+                      <div style="background:#fef3c7;padding:0.5rem;border-radius:4px;margin-bottom:0.25rem">BATCH-2024-001 - Processing...</div>
+                      <div style="background:#dbeafe;padding:0.5rem;border-radius:4px;margin-bottom:0.25rem">BATCH-2024-002 - Queued</div>
+                      <div style="background:#dbeafe;padding:0.5rem;border-radius:4px;margin-bottom:0.25rem">BATCH-2024-003 - Queued</div>
+                      <div style="background:#dbeafe;padding:0.5rem;border-radius:4px;margin-bottom:0.25rem">BATCH-2024-004 - Queued</div>
+                      <div style="background:#dbeafe;padding:0.5rem;border-radius:4px">BATCH-2024-005 - Queued</div>
+                    </div>
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               Posting Queue

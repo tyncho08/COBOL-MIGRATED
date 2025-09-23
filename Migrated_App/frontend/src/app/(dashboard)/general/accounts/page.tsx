@@ -618,7 +618,36 @@ export default function ChartOfAccountsPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                toast('Import functionality coming soon')
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '.csv,.xlsx'
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (file) {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    try {
+                      const response = await fetch('/api/v1/general/accounts/import', {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: formData
+                      })
+                      if (response.ok) {
+                        const result = await response.json()
+                        toast.success(`Imported ${result.imported_count} accounts successfully`)
+                        window.location.reload()
+                      } else {
+                        toast.error('Failed to import accounts')
+                      }
+                    } catch (error) {
+                      console.error('Error importing accounts:', error)
+                      toast.error('Error importing accounts')
+                    }
+                  }
+                }
+                input.click()
               }}
             >
               <DocumentArrowUpIcon className="h-4 w-4 mr-2" />

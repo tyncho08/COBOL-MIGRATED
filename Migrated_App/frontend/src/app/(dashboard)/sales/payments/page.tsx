@@ -242,8 +242,30 @@ export default function CustomerPaymentsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle reverse payment
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to reverse payment ${payment.payment_number}?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/sales/payments/${payment.id}/reverse`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({
+                          reason: prompt('Enter reason for reversal:') || 'Customer request'
+                        })
+                      })
+                      if (response.ok) {
+                        alert('Payment reversed successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to reverse payment')
+                      }
+                    } catch (error) {
+                      console.error('Error reversing payment:', error)
+                      alert('Error reversing payment')
+                    }
+                  }
                 }}
               >
                 <ArrowPathIcon className="h-4 w-4" />
@@ -366,8 +388,24 @@ export default function CustomerPaymentsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle auto-allocation
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/sales/payments/auto-allocate', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify([]) // Empty array means allocate all unallocated payments
+                  })
+                  const result = await response.json()
+                  alert(`Auto-allocated ${result.allocated_count} payments totaling $${result.amount_allocated}`)
+                  // Refresh the data
+                  window.location.reload()
+                } catch (error) {
+                  console.error('Failed to auto-allocate payments:', error)
+                  alert('Failed to auto-allocate payments')
+                }
               }}
             >
               Auto Allocate

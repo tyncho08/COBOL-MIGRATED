@@ -4,7 +4,7 @@ Combines all API routers into single entry point
 """
 from fastapi import APIRouter
 
-from app.routers.auth import router as auth_router
+# Skip auth router since it's handled in main.py
 from .users import router as users_router
 from .purchase_orders import router as purchase_orders_router
 from .goods_receipts import router as goods_receipts_router
@@ -29,7 +29,7 @@ from .system import router as system_router
 api_router = APIRouter(prefix="/api/v1")
 
 # Include all sub-routers
-api_router.include_router(auth_router)
+# auth_router is handled in main.py
 api_router.include_router(users_router)
 api_router.include_router(purchase_orders_router)
 api_router.include_router(goods_receipts_router)

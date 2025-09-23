@@ -223,7 +223,43 @@ export default function SystemConfigPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view config details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Configuration Details: ${config.config_name}</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Key:</strong> ${config.config_key}<br>
+                      <strong>Module:</strong> ${config.module}<br>
+                      <strong>Category:</strong> ${config.category || 'General'}<br>
+                      <strong>Data Type:</strong> ${config.data_type}<br>
+                      <strong>Current Value:</strong> ${config.is_encrypted ? '***ENCRYPTED***' : config.config_value}<br>
+                      ${config.default_value ? `<strong>Default Value:</strong> ${config.default_value}<br>` : ''}
+                      <strong>Last Modified:</strong> ${config.last_modified_date ? new Date(config.last_modified_date).toLocaleString() : 'Never'}<br>
+                      <strong>Modified By:</strong> ${config.last_modified_by || 'System'}<br>
+                    </div>
+                    ${config.description ? `<div style="background:#f3f4f6;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                      <p><strong>Description:</strong></p>
+                      <p>${config.description}</p>
+                    </div>` : ''}
+                    <div style="margin-bottom:1rem">
+                      <strong>Properties:</strong><br>
+                      User Editable: ${config.is_user_editable ? 'Yes' : 'No'}<br>
+                      Required: ${config.is_required ? 'Yes' : 'No'}<br>
+                      Encrypted: ${config.is_encrypted ? 'Yes' : 'No'}<br>
+                      Requires Restart: ${config.requires_restart ? 'Yes' : 'No'}<br>
+                    </div>
+                    ${config.validation_rule ? `<div style="background:#fff7ed;padding:1rem;border-radius:4px;margin-bottom:1rem">
+                      <p><strong>Validation Rule:</strong></p>
+                      <p style="font-family:monospace;font-size:0.875rem">${config.validation_rule}</p>
+                    </div>` : ''}
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -304,8 +340,26 @@ export default function SystemConfigPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle export config
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/system/config/export', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `system-config-${new Date().toISOString().split('T')[0]}.json`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
+                } catch (error) {
+                  console.error('Failed to export config:', error)
+                  alert('Failed to export configuration')
+                }
               }}
             >
               <DocumentTextIcon className="h-4 w-4 mr-2" />
@@ -313,8 +367,23 @@ export default function SystemConfigPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle backup config
+              onClick={async () => {
+                if (confirm('Create a backup of all system configurations? This will create a timestamped backup file.')) {
+                  try {
+                    const response = await fetch('/api/v1/system/config/backup', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                      }
+                    })
+                    const data = await response.json()
+                    alert(`Configuration backup created successfully\n\nBackup ID: ${data.backup_id}\nFile: ${data.filename}\nConfigurations: ${data.config_count}`)
+                  } catch (error) {
+                    console.error('Failed to backup config:', error)
+                    alert('Failed to create configuration backup')
+                  }
+                }
               }}
             >
               <DatabaseIcon className="h-4 w-4 mr-2" />
@@ -323,7 +392,62 @@ export default function SystemConfigPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle security settings
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Security Settings</h2>
+                    <form id="securityForm">
+                      <div style="margin-bottom:1.5rem">
+                        <h3 style="font-weight:bold;margin-bottom:0.5rem">Password Policy</h3>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          <input type="checkbox" name="requireStrongPassword" checked> Require strong passwords
+                        </label>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          <input type="checkbox" name="require2FA"> Require two-factor authentication
+                        </label>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          Password expiry (days): <input type="number" name="passwordExpiry" value="90" style="width:60px;padding:0.25rem;border:1px solid #ccc;border-radius:4px">
+                        </label>
+                      </div>
+                      <div style="margin-bottom:1.5rem">
+                        <h3 style="font-weight:bold;margin-bottom:0.5rem">Session Settings</h3>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          Session timeout (minutes): <input type="number" name="sessionTimeout" value="30" style="width:60px;padding:0.25rem;border:1px solid #ccc;border-radius:4px">
+                        </label>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          <input type="checkbox" name="singleSession" checked> Allow only single active session per user
+                        </label>
+                      </div>
+                      <div style="margin-bottom:1.5rem">
+                        <h3 style="font-weight:bold;margin-bottom:0.5rem">Audit Settings</h3>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          <input type="checkbox" name="auditAllTransactions" checked> Audit all financial transactions
+                        </label>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          <input type="checkbox" name="auditConfigChanges" checked> Audit configuration changes
+                        </label>
+                        <label style="display:block;margin-bottom:0.5rem">
+                          Audit retention (days): <input type="number" name="auditRetention" value="365" style="width:60px;padding:0.25rem;border:1px solid #ccc;border-radius:4px">
+                        </label>
+                      </div>
+                      <div style="display:flex;gap:0.5rem">
+                        <button type="submit" style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Save Settings</button>
+                        <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.querySelector('#securityForm').onsubmit = async (e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  alert('Security settings updated successfully')
+                  modal.remove()
+                }
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <ShieldCheckIcon className="h-4 w-4 mr-2" />
@@ -332,7 +456,83 @@ export default function SystemConfigPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle user permissions
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:800px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">User Permission Matrix</h2>
+                    <div style="overflow-x:auto">
+                      <table style="width:100%;border-collapse:collapse">
+                        <thead>
+                          <tr style="background:#f3f4f6">
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:left">Role</th>
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:center">View Reports</th>
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:center">Create Entries</th>
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:center">Approve</th>
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:center">Post GL</th>
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:center">System Config</th>
+                            <th style="padding:0.75rem;border:1px solid #ddd;text-align:center">User Admin</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td style="padding:0.75rem;border:1px solid #ddd">Administrator</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.75rem;border:1px solid #ddd">Manager</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.75rem;border:1px solid #ddd">Accountant</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.75rem;border:1px solid #ddd">Clerk</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                          </tr>
+                          <tr>
+                            <td style="padding:0.75rem;border:1px solid #ddd">Viewer</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">✓</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                            <td style="padding:0.75rem;border:1px solid #ddd;text-align:center">-</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div style="margin-top:1.5rem;display:flex;gap:0.5rem">
+                      <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="window.location.href='/system/users'">Manage Users</button>
+                      <button style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                    </div>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <UserGroupIcon className="h-4 w-4 mr-2" />

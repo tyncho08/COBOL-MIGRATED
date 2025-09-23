@@ -208,7 +208,24 @@ export default function DashboardPage() {
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm text-gray-900">{alert.message}</p>
-                    <button className="text-xs text-blue-600 hover:text-blue-800 mt-1">
+                    <button 
+                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                      onClick={() => {
+                        switch (alert.action) {
+                          case 'Review Stock':
+                            window.location.href = '/stock/items'
+                            break
+                          case 'Review Orders':
+                            window.location.href = '/purchase/orders'
+                            break
+                          case 'Review Payments':
+                            window.location.href = '/sales/payments'
+                            break
+                          default:
+                            break
+                        }
+                      }}
+                    >
                       {alert.action}
                     </button>
                   </div>

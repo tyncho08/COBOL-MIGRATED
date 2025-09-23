@@ -633,7 +633,31 @@ export default function CustomersPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  await customersApi.getAgedDebtors()
+                  const response = await fetch('/api/v1/master/customers/aged-debtors', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Aged Debtors Report</title></head>
+                        <body>
+                          <h1>Aged Debtors Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Customer</th><th>Current</th><th>30 Days</th><th>60 Days</th><th>90+ Days</th><th>Total</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.customer}</td><td>$${row.current}</td><td>$${row['30_days']}</td><td>$${row['60_days']}</td><td>$${row['90_days']}</td><td>$${row.total}</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td>TOTALS</td><td>$${data.totals?.current}</td><td>$${data.totals?.['30_days']}</td><td>$${data.totals?.['60_days']}</td><td>$${data.totals?.['90_days']}</td><td>$${data.totals?.total}</td></tr>
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
                   toast.success('Aged debtors report generated')
                 } catch (error) {
                   toast.error('Failed to generate aged debtors report')

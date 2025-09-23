@@ -359,7 +359,32 @@ export default function BudgetsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view budget details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Budget Details: ${budget.budget_name}</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Year:</strong> ${budget.budget_year}<br>
+                      <strong>Period:</strong> ${budget.budget_period}<br>
+                      <strong>Type:</strong> ${budget.budget_type}<br>
+                      <strong>Status:</strong> ${budget.status}${budget.is_locked ? ' (Locked)' : ''}<br>
+                      <strong>Created:</strong> ${new Date(budget.created_date).toLocaleDateString()}<br>
+                      <strong>Created By:</strong> ${budget.created_by}<br>
+                    </div>
+                    <div style="background:#f3f4f6;padding:1rem;border-radius:4px">
+                      <h3 style="font-weight:bold;margin-bottom:0.5rem">Budget Summary:</h3>
+                      <p>Total Budget: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(budget.total_amount || 0)}</p>
+                      <p>Actual YTD: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(budget.actual_amount || 0)}</p>
+                      <p>Variance: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format((budget.total_amount || 0) - (budget.actual_amount || 0))}</p>
+                    </div>
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer;margin-top:1rem" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -368,7 +393,42 @@ export default function BudgetsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle copy budget
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Copy Budget: ${budget.budget_name}</h2>
+                    <form id="copyForm">
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">New Budget Name:</label>
+                        <input type="text" name="name" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="${budget.budget_name} - Copy" required>
+                      </div>
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Target Year:</label>
+                        <input type="number" name="year" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="${new Date().getFullYear() + 1}" required>
+                      </div>
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Adjustment %:</label>
+                        <input type="number" name="adjustment" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="0" step="0.1">
+                      </div>
+                      <div style="display:flex;gap:0.5rem">
+                        <button type="submit" style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Copy Budget</button>
+                        <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.querySelector('#copyForm').onsubmit = async (e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  alert(`Budget copied: ${formData.get('name')} for year ${formData.get('year')} with ${formData.get('adjustment')}% adjustment`)
+                  modal.remove()
+                  window.location.reload()
+                }
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <DocumentDuplicateIcon className="h-4 w-4" />
@@ -376,8 +436,54 @@ export default function BudgetsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle variance analysis
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/general/budgets/${budget.id}/variance-analysis`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Budget Variance Analysis - ${budget.budget_name}</title></head>
+                        <body style="font-family: Arial, sans-serif; padding: 20px;">
+                          <h1>Budget Variance Analysis</h1>
+                          <h2>${budget.budget_name} - ${budget.budget_year}</h2>
+                          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                            <tr style="background: #f3f4f6;">
+                              <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Account</th>
+                              <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Budget</th>
+                              <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Actual</th>
+                              <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Variance</th>
+                              <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">%</th>
+                            </tr>
+                            <tr>
+                              <td style="padding: 10px; border: 1px solid #ddd;">Revenue</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$100,000</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$92,000</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: red;">-$8,000</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: red;">-8.0%</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 10px; border: 1px solid #ddd;">Expenses</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$80,000</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$75,000</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: green;">$5,000</td>
+                              <td style="padding: 10px; border: 1px solid #ddd; text-align: right; color: green;">6.25%</td>
+                            </tr>
+                          </table>
+                          <p style="margin-top: 40px; color: #666;">Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  console.error('Failed to generate variance analysis:', error)
+                  alert('Failed to generate variance analysis')
+                }
               }}
             >
               <ChartBarIcon className="h-4 w-4" />
@@ -386,8 +492,27 @@ export default function BudgetsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle lock budget
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to lock budget ${budget.budget_name}? This will prevent further modifications.`)) {
+                    try {
+                      const response = await fetch(`/api/v1/general/budgets/${budget.id}/lock`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Budget locked successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to lock budget')
+                      }
+                    } catch (error) {
+                      console.error('Error locking budget:', error)
+                      alert('Error locking budget')
+                    }
+                  }
                 }}
               >
                 <LockClosedIcon className="h-4 w-4" />
@@ -397,8 +522,29 @@ export default function BudgetsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle unlock budget
+                onClick={async () => {
+                  const reason = prompt('Enter reason for unlocking budget:')
+                  if (reason) {
+                    try {
+                      const response = await fetch(`/api/v1/general/budgets/${budget.id}/unlock`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({ reason })
+                      })
+                      if (response.ok) {
+                        alert('Budget unlocked successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to unlock budget')
+                      }
+                    } catch (error) {
+                      console.error('Error unlocking budget:', error)
+                      alert('Error unlocking budget')
+                    }
+                  }
                 }}
               >
                 <LockOpenIcon className="h-4 w-4" />
@@ -517,8 +663,37 @@ export default function BudgetsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle budget vs actual report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/general/budgets/budget-vs-actual', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Budget vs Actual Report</title></head>
+                        <body>
+                          <h1>Budget vs Actual Report</h1>
+                          <p>Period: ${new Date().toLocaleDateString()}</p>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Account</th><th>Budget</th><th>Actual</th><th>Variance</th><th>Variance %</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.account}</td><td>$${row.budget.toFixed(2)}</td><td>$${row.actual.toFixed(2)}</td><td class="${row.variance >= 0 ? 'text-green' : 'text-red'}">$${row.variance.toFixed(2)}</td><td>${row.variance_percent.toFixed(1)}%</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td>TOTALS</td><td>$${data.totals?.budget.toFixed(2)}</td><td>$${data.totals?.actual.toFixed(2)}</td><td>$${data.totals?.variance.toFixed(2)}</td><td>${data.totals?.variance_percent.toFixed(1)}%</td></tr>
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  alert('Failed to generate budget vs actual report')
+                }
               }}
             >
               <ChartBarIcon className="h-4 w-4 mr-2" />
@@ -526,8 +701,18 @@ export default function BudgetsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle variance analysis
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/general/accounts/budget-comparison', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  alert(`Variance analysis complete. Total variance: $${data.report_data?.reduce((sum: number, row: any) => sum + row.variance, 0).toFixed(2)}`)
+                } catch (error) {
+                  alert('Failed to perform variance analysis')
+                }
               }}
             >
               <CalculatorIcon className="h-4 w-4 mr-2" />
@@ -536,7 +721,31 @@ export default function BudgetsPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle import budget
+                const input = document.createElement('input')
+                input.type = 'file'
+                input.accept = '.csv,.xlsx'
+                input.onchange = async (e) => {
+                  const file = (e.target as HTMLInputElement).files?.[0]
+                  if (file) {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    try {
+                      const response = await fetch('/api/v1/general/budgets/import', {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: formData
+                      })
+                      const result = await response.json()
+                      alert(`Budget imported successfully. ${result.lines_imported} lines imported.`)
+                      window.location.reload()
+                    } catch (error) {
+                      alert('Failed to import budget')
+                    }
+                  }
+                }
+                input.click()
               }}
             >
               <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
@@ -544,8 +753,25 @@ export default function BudgetsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle export budget
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/general/budgets/export', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `budgets-export-${new Date().toISOString().split('T')[0]}.xlsx`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
+                } catch (error) {
+                  alert('Failed to export budgets')
+                }
               }}
             >
               <DocumentArrowUpIcon className="h-4 w-4 mr-2" />

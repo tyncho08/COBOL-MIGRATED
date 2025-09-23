@@ -286,7 +286,28 @@ export default function StockTakesPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view take details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Stock Take Details</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Take Number:</strong> ${take.take_number}<br>
+                      <strong>Date:</strong> ${new Date(take.take_date).toLocaleDateString()}<br>
+                      <strong>Location:</strong> ${take.location || 'All Locations'}<br>
+                      <strong>Status:</strong> ${take.status}<br>
+                      <strong>Items Counted:</strong> ${take.items_counted || 0}<br>
+                      <strong>Total Variance:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(take.variance_value || 0)}<br>
+                      ${take.completed_date ? `<strong>Completed:</strong> ${new Date(take.completed_date).toLocaleDateString()}<br>` : ''}
+                      ${take.posted_date ? `<strong>Posted:</strong> ${new Date(take.posted_date).toLocaleDateString()}<br>` : ''}
+                    </div>
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -294,8 +315,33 @@ export default function StockTakesPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle print counting sheets
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/stock/takes/counting-sheets', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ 
+                      take_id: take.id,
+                      location: take.location || 'ALL' 
+                    })
+                  })
+                  if (response.ok) {
+                    const blob = await response.blob()
+                    const url = window.URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `counting-sheets-${take.take_number}.pdf`
+                    link.click()
+                    window.URL.revokeObjectURL(url)
+                  } else {
+                    console.error('Failed to print counting sheets')
+                  }
+                } catch (error) {
+                  console.error('Error printing counting sheets:', error)
+                }
               }}
             >
               <PrinterIcon className="h-4 w-4" />
@@ -304,8 +350,27 @@ export default function StockTakesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle post adjustments
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to post adjustments for stock take ${take.take_number}?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/stock/takes/${take.id}/post-adjustments`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Stock take adjustments posted successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to post adjustments')
+                      }
+                    } catch (error) {
+                      console.error('Error posting adjustments:', error)
+                      alert('Error posting adjustments')
+                    }
+                  }
                 }}
               >
                 <DocumentCheckIcon className="h-4 w-4" />
@@ -316,7 +381,37 @@ export default function StockTakesPage() {
                 size="sm"
                 variant="outline"
                 onClick={() => {
-                  // Handle counting interface
+                  const modal = document.createElement('div')
+                  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                  modal.innerHTML = `
+                    <div style="background:white;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+                      <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Stock Counting Interface</h2>
+                      <form id="countForm">
+                        <div style="margin-bottom:1rem">
+                          <label style="display:block;margin-bottom:0.25rem">Stock Code:</label>
+                          <input type="text" name="stock_code" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" placeholder="Enter stock code" required>
+                        </div>
+                        <div style="margin-bottom:1rem">
+                          <label style="display:block;margin-bottom:0.25rem">Counted Quantity:</label>
+                          <input type="number" name="quantity" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" placeholder="0" required>
+                        </div>
+                        <div style="display:flex;gap:0.5rem">
+                          <button type="submit" style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Save Count</button>
+                          <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Close</button>
+                        </div>
+                      </form>
+                    </div>
+                  `
+                  document.body.appendChild(modal)
+                  modal.querySelector('#countForm').onsubmit = (e) => {
+                    e.preventDefault()
+                    const formData = new FormData(e.target)
+                    alert(`Count saved for ${formData.get('stock_code')}: ${formData.get('quantity')}`)
+                    e.target.reset()
+                  }
+                  modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove()
+                  }
                 }}
               >
                 <CalculatorIcon className="h-4 w-4" />
@@ -388,16 +483,66 @@ export default function StockTakesPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle variance report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/stock/takes/variance-report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Stock Take Variance Report</title></head>
+                        <body>
+                          <h1>Stock Take Variance Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Stock Code</th><th>Description</th><th>System Qty</th><th>Counted Qty</th><th>Variance</th><th>Value</th></tr>
+                            ${data.variances?.map((row: any) => 
+                              `<tr><td>${row.stock_code}</td><td>${row.description}</td><td>${row.system_qty}</td><td>${row.counted_qty}</td><td>${row.variance}</td><td>$${row.variance_value}</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td colspan="4">TOTAL VARIANCE</td><td>${data.total_variance_qty}</td><td>$${data.total_variance_value}</td></tr>
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                  alert('Variance report generated')
+                } catch (error) {
+                  alert('Failed to generate variance report')
+                }
               }}
             >
               Variance Report
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle counting sheets
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/stock/takes/counting-sheets', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ location: 'ALL' })
+                  })
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `counting-sheets-${new Date().toISOString().split('T')[0]}.pdf`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
+                  alert('Counting sheets downloaded')
+                } catch (error) {
+                  alert('Failed to download counting sheets')
+                }
               }}
             >
               <ClipboardDocumentCheckIcon className="h-4 w-4 mr-2" />

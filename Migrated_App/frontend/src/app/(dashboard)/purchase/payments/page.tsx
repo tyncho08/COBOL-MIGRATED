@@ -286,8 +286,42 @@ export default function SupplierPaymentsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle view payment details
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/purchase/payments/${payment.id}/view`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const details = await response.json()
+                  
+                  const modal = document.createElement('div')
+                  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                  modal.innerHTML = `
+                    <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                      <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Payment Details</h2>
+                      <div style="margin-bottom:1rem">
+                        <strong>Payment Number:</strong> ${details.payment_number}<br>
+                        <strong>Date:</strong> ${new Date(details.payment_date).toLocaleDateString()}<br>
+                        <strong>Supplier:</strong> ${details.supplier_code} - ${details.supplier_name}<br>
+                        <strong>Type:</strong> ${details.payment_type}<br>
+                        <strong>Reference:</strong> ${details.reference || 'N/A'}<br>
+                        <strong>Amount:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(details.payment_amount)}<br>
+                        <strong>Allocated:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(details.allocated_amount)}<br>
+                        <strong>Unallocated:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(details.unallocated_amount)}<br>
+                        <strong>Status:</strong> ${details.payment_status}${details.is_reversed ? ' (Reversed)' : ''}
+                        ${details.gl_posted ? '<br><strong>GL Posted:</strong> Yes' : ''}
+                      </div>
+                      <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                    </div>
+                  `
+                  document.body.appendChild(modal)
+                  modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove()
+                  }
+                } catch (error) {
+                  console.error('Error fetching payment details:', error)
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -307,8 +341,50 @@ export default function SupplierPaymentsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle view allocation details
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/purchase/payments/${payment.id}/allocations`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const allocations = await response.json()
+                  
+                  const modal = document.createElement('div')
+                  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                  modal.innerHTML = `
+                    <div style="background:white;padding:2rem;border-radius:8px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto">
+                      <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Payment Allocations</h2>
+                      <table style="width:100%;border-collapse:collapse">
+                        <thead>
+                          <tr style="border-bottom:2px solid #ccc">
+                            <th style="padding:0.5rem;text-align:left">Invoice</th>
+                            <th style="padding:0.5rem;text-align:left">Date</th>
+                            <th style="padding:0.5rem;text-align:right">Invoice Amount</th>
+                            <th style="padding:0.5rem;text-align:right">Allocated</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${allocations.map(a => `
+                            <tr style="border-bottom:1px solid #eee">
+                              <td style="padding:0.5rem">${a.invoice_number}</td>
+                              <td style="padding:0.5rem">${new Date(a.allocation_date).toLocaleDateString()}</td>
+                              <td style="padding:0.5rem;text-align:right">${new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(a.invoice_amount)}</td>
+                              <td style="padding:0.5rem;text-align:right">${new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format(a.allocated_amount)}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                      <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer;margin-top:1rem" onclick="this.parentElement.parentElement.remove()">Close</button>
+                    </div>
+                  `
+                  document.body.appendChild(modal)
+                  modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove()
+                  }
+                } catch (error) {
+                  console.error('Error fetching allocations:', error)
+                }
               }}
             >
               <DocumentTextIcon className="h-4 w-4" />
@@ -317,8 +393,27 @@ export default function SupplierPaymentsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle reverse payment
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to reverse payment ${payment.payment_number}?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/purchase/payments/${payment.id}/reverse`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Payment reversed successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to reverse payment')
+                      }
+                    } catch (error) {
+                      console.error('Error reversing payment:', error)
+                      alert('Error reversing payment')
+                    }
+                  }
                 }}
               >
                 <ArrowPathIcon className="h-4 w-4" />
@@ -429,8 +524,37 @@ export default function SupplierPaymentsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle payments journal
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/purchase/payments/journal', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Purchase Payments Journal</title></head>
+                        <body>
+                          <h1>Purchase Payments Journal</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Date</th><th>Reference</th><th>Supplier</th><th>Amount</th><th>Method</th></tr>
+                            ${data.journal_entries?.map((entry: any) => 
+                              `<tr><td>${entry.date}</td><td>${entry.reference}</td><td>${entry.supplier}</td><td>$${entry.amount.toFixed(2)}</td><td>${entry.payment_method}</td></tr>`
+                            ).join('')}
+                          </table>
+                          <p><strong>Total Payments:</strong> $${data.total_payments?.toFixed(2) || '0.00'}</p>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  console.error('Failed to generate payment journal:', error)
+                  alert('Failed to generate payment journal')
+                }
               }}
             >
               <BanknotesIcon className="h-4 w-4 mr-2" />
@@ -438,8 +562,29 @@ export default function SupplierPaymentsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle auto-allocation
+              onClick={async () => {
+                if (confirm('Auto-allocate all unallocated supplier payments to outstanding invoices?')) {
+                  try {
+                    const response = await fetch('/api/v1/purchase/payments/auto-allocate', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                      },
+                      body: JSON.stringify([])
+                    })
+                    if (response.ok) {
+                      const result = await response.json()
+                      alert(`Auto-allocated ${result.allocated_count} payments totaling ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(result.amount_allocated)}`)
+                      window.location.reload()
+                    } else {
+                      alert('Failed to auto-allocate payments')
+                    }
+                  } catch (error) {
+                    console.error('Error auto-allocating payments:', error)
+                    alert('Error auto-allocating payments')
+                  }
+                }
               }}
             >
               Auto Allocate

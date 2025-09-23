@@ -742,7 +742,15 @@ export default function StockItemsPage() {
               onClick={async () => {
                 try {
                   const blob = await stockItemsApi.export('excel')
-                  // Handle blob download
+                  // Create download link
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `stock-items-${new Date().toISOString().split('T')[0]}.xlsx`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
                   toast.success('Stock items exported')
                 } catch (error) {
                   toast.error('Failed to export stock items')

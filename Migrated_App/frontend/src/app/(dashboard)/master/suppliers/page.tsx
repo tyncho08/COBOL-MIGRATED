@@ -622,7 +622,31 @@ export default function SuppliersPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  await suppliersApi.getAgedCreditors()
+                  const response = await fetch('/api/v1/master/suppliers/aged-creditors', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Aged Creditors Report</title></head>
+                        <body>
+                          <h1>Aged Creditors Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Supplier</th><th>Current</th><th>30 Days</th><th>60 Days</th><th>90+ Days</th><th>Total</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.supplier}</td><td>$${row.current}</td><td>$${row['30_days']}</td><td>$${row['60_days']}</td><td>$${row['90_days']}</td><td>$${row.total}</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td>TOTALS</td><td>$${data.totals?.current}</td><td>$${data.totals?.['30_days']}</td><td>$${data.totals?.['60_days']}</td><td>$${data.totals?.['90_days']}</td><td>$${data.totals?.total}</td></tr>
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
                   toast.success('Aged creditors report generated')
                 } catch (error) {
                   toast.error('Failed to generate aged creditors report')

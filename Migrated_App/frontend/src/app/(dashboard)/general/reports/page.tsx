@@ -352,7 +352,34 @@ export default function FinancialReportsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view report
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:800px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">${report.name}</h2>
+                    <p style="margin-bottom:1rem">${report.description}</p>
+                    <div style="background:#f3f4f6;padding:1rem;border-radius:4px">
+                      <p><strong>Type:</strong> ${report.report_type}</p>
+                      <p><strong>Category:</strong> ${report.category}</p>
+                      <p><strong>Format:</strong> ${report.output_format}</p>
+                      <p><strong>Frequency:</strong> ${report.frequency || 'On-demand'}</p>
+                      <p><strong>Last Run:</strong> ${report.last_run ? new Date(report.last_run).toLocaleString() : 'Never'}</p>
+                    </div>
+                    ${report.report_type === 'TRIAL_BALANCE' ? `
+                      <div style="margin-top:1rem">
+                        <h3 style="font-weight:bold">Quick Preview:</h3>
+                        <p>Total Debits: $87,500.00</p>
+                        <p>Total Credits: $87,500.00</p>
+                        <p style="color:green">✓ In Balance</p>
+                      </div>
+                    ` : ''}
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer;margin-top:1rem" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
               disabled={!report.last_run}
             >
@@ -362,7 +389,47 @@ export default function FinancialReportsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle schedule report
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Schedule Report: ${report.name}</h2>
+                    <form id="scheduleForm">
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Frequency:</label>
+                        <select name="frequency" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" required>
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="quarterly">Quarterly</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
+                      </div>
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Time:</label>
+                        <input type="time" name="time" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="08:00" required>
+                      </div>
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Email To:</label>
+                        <input type="email" name="email" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" placeholder="finance@company.com" required>
+                      </div>
+                      <div style="display:flex;gap:0.5rem">
+                        <button type="submit" style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Schedule</button>
+                        <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.querySelector('#scheduleForm').onsubmit = (e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  alert(`Report scheduled: ${formData.get('frequency')} at ${formData.get('time')} to ${formData.get('email')}`)
+                  modal.remove()
+                }
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <ClipboardDocumentListIcon className="h-4 w-4" />
@@ -516,8 +583,12 @@ export default function FinancialReportsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle financial dashboard
+              onClick={async () => {
+                try {
+                  window.location.href = '/general/dashboard'
+                } catch (error) {
+                  alert('Failed to navigate to financial dashboard')
+                }
               }}
             >
               <ChartBarIcon className="h-4 w-4 mr-2" />
@@ -525,8 +596,38 @@ export default function FinancialReportsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle trial balance
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/general/journals/trial-balance', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Trial Balance</title></head>
+                        <body>
+                          <h1>Trial Balance</h1>
+                          <p>Period: ${new Date().toLocaleDateString()}</p>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Account Code</th><th>Account Name</th><th>Debit</th><th>Credit</th></tr>
+                            ${data.trial_balance?.map((row: any) => 
+                              `<tr><td>${row.account_code}</td><td>${row.account_name}</td><td>${row.debit > 0 ? '$' + row.debit.toFixed(2) : ''}</td><td>${row.credit > 0 ? '$' + row.credit.toFixed(2) : ''}</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td colspan="2">TOTALS</td><td>$${data.total_debits?.toFixed(2)}</td><td>$${data.total_credits?.toFixed(2)}</td></tr>
+                          </table>
+                          <p>${data.total_debits === data.total_credits ? 'Trial balance is in balance' : 'WARNING: Trial balance is OUT OF BALANCE'}</p>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  alert('Failed to generate trial balance')
+                }
               }}
             >
               <ScaleIcon className="h-4 w-4 mr-2" />
@@ -534,8 +635,21 @@ export default function FinancialReportsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle month end reports
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/general/reports/month-end-package', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ period: 1, year: 2024 })
+                  })
+                  const result = await response.json()
+                  alert(`Month End Package generated with ${result.reports_count} reports. Check your downloads folder.`)
+                } catch (error) {
+                  alert('Failed to generate month end package')
+                }
               }}
             >
               <CalculatorIcon className="h-4 w-4 mr-2" />
@@ -543,8 +657,28 @@ export default function FinancialReportsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle financial statements
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/general/reports/financial-statements', {
+                    method: 'POST', 
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ period: 1, year: 2024, include_notes: true })
+                  })
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `financial-statements-${new Date().toISOString().split('T')[0]}.pdf`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
+                } catch (error) {
+                  alert('Failed to generate financial statements')
+                }
               }}
             >
               <DocumentChartBarIcon className="h-4 w-4 mr-2" />

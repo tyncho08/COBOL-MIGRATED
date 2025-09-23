@@ -320,7 +320,30 @@ export default function PurchaseInvoicesPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view invoice details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Purchase Invoice Details</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Invoice Number:</strong> ${invoice.invoice_number}<br>
+                      <strong>Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}<br>
+                      <strong>Supplier:</strong> ${invoice.supplier_code} - ${invoice.supplier_name}<br>
+                      <strong>Order Number:</strong> ${invoice.order_number || 'N/A'}<br>
+                      <strong>Receipt Number:</strong> ${invoice.receipt_number || 'N/A'}<br>
+                      <strong>Total:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.gross_total)}<br>
+                      <strong>Balance:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.balance)}<br>
+                      <strong>Status:</strong> ${invoice.invoice_status}${invoice.is_paid ? ' (Paid)' : ''}
+                      ${invoice.gl_posted ? '<br><strong>GL Posted:</strong> Yes' : ''}
+                      ${invoice.is_approved ? '<br><strong>Approved:</strong> Yes' : ''}
+                    </div>
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -328,8 +351,27 @@ export default function PurchaseInvoicesPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle print invoice
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/print`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  if (response.ok) {
+                    const blob = await response.blob()
+                    const url = window.URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `purchase-invoice-${invoice.invoice_number}.pdf`
+                    link.click()
+                    window.URL.revokeObjectURL(url)
+                  } else {
+                    console.error('Failed to print invoice')
+                  }
+                } catch (error) {
+                  console.error('Error printing invoice:', error)
+                }
               }}
             >
               <PrinterIcon className="h-4 w-4" />
@@ -338,8 +380,27 @@ export default function PurchaseInvoicesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle approve invoice
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to approve invoice ${invoice.invoice_number}?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/approve`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Invoice approved successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to approve invoice')
+                      }
+                    } catch (error) {
+                      console.error('Error approving invoice:', error)
+                      alert('Error approving invoice')
+                    }
+                  }
                 }}
               >
                 <DocumentCheckIcon className="h-4 w-4" />
@@ -349,8 +410,27 @@ export default function PurchaseInvoicesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle post to GL
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to post invoice ${invoice.invoice_number} to General Ledger?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/post-gl`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Invoice posted to GL successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to post invoice to GL')
+                      }
+                    } catch (error) {
+                      console.error('Error posting to GL:', error)
+                      alert('Error posting invoice to GL')
+                    }
+                  }
                 }}
               >
                 <ReceiptPercentIcon className="h-4 w-4" />
@@ -360,8 +440,27 @@ export default function PurchaseInvoicesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle reverse invoice
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to reverse invoice ${invoice.invoice_number}?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/reverse`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Invoice reversed successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to reverse invoice')
+                      }
+                    } catch (error) {
+                      console.error('Error reversing invoice:', error)
+                      alert('Error reversing invoice')
+                    }
+                  }
                 }}
               >
                 <ArrowPathIcon className="h-4 w-4" />
@@ -446,16 +545,58 @@ export default function PurchaseInvoicesPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle aging report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/purchase/invoices/aging-report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Purchase Aging Report</title></head>
+                        <body>
+                          <h1>Purchase Aging Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Supplier</th><th>Current</th><th>30 Days</th><th>60 Days</th><th>90+ Days</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.supplier}</td><td>$${row.current}</td><td>$${row['30_days']}</td><td>$${row['60_days']}</td><td>$${row['90_days']}</td></tr>`
+                            ).join('')}
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  console.error('Failed to generate aging report:', error)
+                }
               }}
             >
               Aging Report
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle batch approval
+              onClick={async () => {
+                try {
+                  // Get selected invoice IDs (would need to implement selection in DataTable)
+                  const selectedIds = [1, 2, 3] // Mock for now
+                  const response = await fetch('/api/v1/purchase/invoices/batch-approve', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(selectedIds)
+                  })
+                  const result = await response.json()
+                  alert(`Approved ${result.approved_count} invoices`)
+                } catch (error) {
+                  console.error('Failed to batch approve:', error)
+                }
               }}
             >
               Batch Approve

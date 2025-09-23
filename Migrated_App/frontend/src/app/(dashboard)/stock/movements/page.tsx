@@ -308,8 +308,27 @@ export default function StockMovementsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle print movement
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/stock/movements/${movement.id}/print`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  if (response.ok) {
+                    const blob = await response.blob()
+                    const url = window.URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `stock-movement-${movement.movement_number}.pdf`
+                    link.click()
+                    window.URL.revokeObjectURL(url)
+                  } else {
+                    console.error('Failed to print movement')
+                  }
+                } catch (error) {
+                  console.error('Error printing movement:', error)
+                }
               }}
             >
               <DocumentTextIcon className="h-4 w-4" />
@@ -434,8 +453,37 @@ export default function StockMovementsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle stock movement report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/stock/movements/report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Stock Movement Report</title></head>
+                        <body>
+                          <h1>Stock Movement Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Stock Code</th><th>Description</th><th>Receipts</th><th>Issues</th><th>Adjustments</th><th>Net Movement</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.stock_code}</td><td>${row.description}</td><td>${row.receipts}</td><td>${row.issues}</td><td>${row.adjustments}</td><td>${row.net_movement}</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td colspan="2">TOTALS</td><td>${data.totals?.receipts}</td><td>${data.totals?.issues}</td><td>${data.totals?.adjustments}</td><td>${data.totals?.net_movement}</td></tr>
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                  alert('Stock movement report generated')
+                } catch (error) {
+                  alert('Failed to generate movement report')
+                }
               }}
             >
               <ChartBarIcon className="h-4 w-4 mr-2" />
@@ -443,8 +491,22 @@ export default function StockMovementsPage() {
             </Button>
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle stock reconciliation
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/stock/movements/reconciliation', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({})
+                  })
+                  const result = await response.json()
+                  alert(`Stock reconciliation completed. ${result.reconciled_items} items reconciled with ${result.discrepancies} discrepancies found.`)
+                  window.location.reload()
+                } catch (error) {
+                  alert('Failed to perform stock reconciliation')
+                }
               }}
             >
               Stock Reconciliation

@@ -261,7 +261,28 @@ export default function GoodsReceiptsPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view receipt details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Goods Receipt Details</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Receipt Number:</strong> ${receipt.receipt_number}<br>
+                      <strong>Date:</strong> ${new Date(receipt.receipt_date).toLocaleDateString()}<br>
+                      <strong>Order Number:</strong> ${receipt.order_number}<br>
+                      <strong>Supplier:</strong> ${receipt.supplier_code} - ${receipt.supplier_name}<br>
+                      <strong>Delivery Note:</strong> ${receipt.delivery_note || 'N/A'}<br>
+                      <strong>Total Items:</strong> ${receipt.receipt_lines?.length || 0}<br>
+                      <strong>Total Amount:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(receipt.total_amount)}<br>
+                      <strong>Status:</strong> ${receipt.receipt_status}${receipt.gl_posted ? ' (Posted to GL)' : ''}
+                    </div>
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -269,8 +290,27 @@ export default function GoodsReceiptsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle print receipt
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/purchase/receipts/${receipt.id}/print`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  if (response.ok) {
+                    const blob = await response.blob()
+                    const url = window.URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `goods-receipt-${receipt.receipt_number}.pdf`
+                    link.click()
+                    window.URL.revokeObjectURL(url)
+                  } else {
+                    console.error('Failed to print receipt')
+                  }
+                } catch (error) {
+                  console.error('Error printing receipt:', error)
+                }
               }}
             >
               <ClipboardDocumentIcon className="h-4 w-4" />
@@ -279,8 +319,27 @@ export default function GoodsReceiptsPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle post to GL
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to post receipt ${receipt.receipt_number} to General Ledger?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/purchase/receipts/${receipt.id}/post-gl`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Receipt posted to GL successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to post receipt to GL')
+                      }
+                    } catch (error) {
+                      console.error('Error posting to GL:', error)
+                      alert('Error posting receipt to GL')
+                    }
+                  }
                 }}
               >
                 <DocumentCheckIcon className="h-4 w-4" />
@@ -348,8 +407,36 @@ export default function GoodsReceiptsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle goods received report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/purchase/receipts/goods-received-report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Goods Received Report</title></head>
+                        <body>
+                          <h1>Goods Received Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Date</th><th>Receipt #</th><th>Supplier</th><th>PO #</th><th>Total</th><th>Status</th></tr>
+                            ${data.receipts?.map((r: any) => 
+                              `<tr><td>${new Date(r.receipt_date).toLocaleDateString()}</td><td>${r.receipt_number}</td><td>${r.supplier_code}</td><td>${r.order_number}</td><td>$${r.total_amount.toFixed(2)}</td><td>${r.status}</td></tr>`
+                            ).join('')}
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  console.error('Failed to generate goods received report:', error)
+                  alert('Failed to generate goods received report')
+                }
               }}
             >
               <TruckIcon className="h-4 w-4 mr-2" />

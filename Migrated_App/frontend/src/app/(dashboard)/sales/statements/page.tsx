@@ -258,8 +258,31 @@ export default function CustomerStatementsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle print statement
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/sales/statements/generate', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ 
+                      customer_code: customer.customer_code,
+                      format: 'pdf'
+                    })
+                  })
+                  const blob = await response.blob()
+                  const url = window.URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `statement-${customer.customer_code}-${new Date().toISOString().split('T')[0]}.pdf`
+                  document.body.appendChild(link)
+                  link.click()
+                  document.body.removeChild(link)
+                  window.URL.revokeObjectURL(url)
+                } catch (error) {
+                  alert('Failed to print statement')
+                }
               }}
             >
               <PrinterIcon className="h-4 w-4" />
@@ -267,8 +290,24 @@ export default function CustomerStatementsPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle email statement
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/sales/statements/email', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify({ 
+                      customer_code: customer.customer_code,
+                      email: customer.email
+                    })
+                  })
+                  const result = await response.json()
+                  alert(`Statement emailed to ${customer.email}`)
+                } catch (error) {
+                  alert('Failed to email statement')
+                }
               }}
               disabled={!customer.email}
             >
@@ -420,8 +459,37 @@ export default function CustomerStatementsPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle aged debtors report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/master/customers/aged-debtors', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Aged Debtors Report</title></head>
+                        <body>
+                          <h1>Aged Debtors Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Customer</th><th>Current</th><th>30 Days</th><th>60 Days</th><th>90+ Days</th><th>Total</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.customer}</td><td>$${row.current}</td><td>$${row['30_days']}</td><td>$${row['60_days']}</td><td>$${row['90_days']}</td><td>$${row.total}</td></tr>`
+                            ).join('')}
+                            <tr style="font-weight:bold"><td>TOTALS</td><td>$${data.totals?.current}</td><td>$${data.totals?.['30_days']}</td><td>$${data.totals?.['60_days']}</td><td>$${data.totals?.['90_days']}</td><td>$${data.totals?.total}</td></tr>
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                  alert('Aged debtors report generated')
+                } catch (error) {
+                  alert('Failed to generate aged debtors report')
+                }
               }}
             >
               Aged Debtors
@@ -513,11 +581,112 @@ export default function CustomerStatementsPage() {
                   Statement generated on {new Date().toLocaleDateString()}
                 </div>
                 <div className="flex space-x-2">
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={async () => {
+                      if (selectedCustomer?.customer_code) {
+                        try {
+                          const response = await fetch('/api/v1/sales/statements/generate', {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                              'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({
+                              customer_code: selectedCustomer.customer_code,
+                              from_date: formData.from_date || '2024-01-01',
+                              to_date: formData.to_date || new Date().toISOString().split('T')[0],
+                              include_paid: formData.include_paid || false
+                            })
+                          })
+                          if (response.ok) {
+                            const blob = await response.blob()
+                            const url = window.URL.createObjectURL(blob)
+                            const link = document.createElement('a')
+                            link.href = url
+                            link.download = `statement-${selectedCustomer.customer_code}-${new Date().toISOString().split('T')[0]}.pdf`
+                            link.click()
+                            window.URL.revokeObjectURL(url)
+                          } else {
+                            alert('Failed to generate statement')
+                          }
+                        } catch (error) {
+                          console.error('Error printing statement:', error)
+                          alert('Error printing statement')
+                        }
+                      }
+                    }}
+                  >
                     <PrinterIcon className="h-4 w-4 mr-2" />
                     Print
                   </Button>
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      if (selectedCustomer) {
+                        const modal = document.createElement('div')
+                        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                        modal.innerHTML = `
+                          <div style="background:white;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+                            <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Email Statement</h2>
+                            <form id="emailForm">
+                              <div style="margin-bottom:1rem">
+                                <label style="display:block;margin-bottom:0.25rem">To:</label>
+                                <input type="email" name="email" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="${selectedCustomer.email || ''}" required>
+                              </div>
+                              <div style="margin-bottom:1rem">
+                                <label style="display:block;margin-bottom:0.25rem">Subject:</label>
+                                <input type="text" name="subject" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="Statement of Account - ${selectedCustomer.customer_code}" required>
+                              </div>
+                              <div style="margin-bottom:1rem">
+                                <label style="display:block;margin-bottom:0.25rem">Message:</label>
+                                <textarea name="message" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" rows="4">Dear ${selectedCustomer.customer_name},\n\nPlease find attached your statement of account.\n\nBest regards,\nAccounts Department</textarea>
+                              </div>
+                              <div style="display:flex;gap:0.5rem">
+                                <button type="submit" style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Send</button>
+                                <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                              </div>
+                            </form>
+                          </div>
+                        `
+                        document.body.appendChild(modal)
+                        modal.querySelector('#emailForm').onsubmit = async (e) => {
+                          e.preventDefault()
+                          const emailFormData = new FormData(e.target)
+                          try {
+                            const response = await fetch('/api/v1/sales/statements/email', {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                              },
+                              body: JSON.stringify({
+                                customer_code: selectedCustomer.customer_code,
+                                email: emailFormData.get('email'),
+                                subject: emailFormData.get('subject'),
+                                message: emailFormData.get('message'),
+                                from_date: formData.from_date || '2024-01-01',
+                                to_date: formData.to_date || new Date().toISOString().split('T')[0],
+                                include_paid: formData.include_paid || false
+                              })
+                            })
+                            if (response.ok) {
+                              modal.remove()
+                              alert('Statement emailed successfully')
+                            } else {
+                              alert('Failed to email statement')
+                            }
+                          } catch (error) {
+                            console.error('Error emailing statement:', error)
+                            alert('Error emailing statement')
+                          }
+                        }
+                        modal.onclick = (e) => {
+                          if (e.target === modal) modal.remove()
+                        }
+                      }
+                    }}
+                  >
                     <EnvelopeIcon className="h-4 w-4 mr-2" />
                     Email
                   </Button>

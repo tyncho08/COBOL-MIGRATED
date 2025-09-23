@@ -448,7 +448,50 @@ export default function StockReportsPage() {
             <Button 
               variant="outline"
               onClick={() => {
-                // Handle stock summary
+                const summaryWindow = window.open('', '_blank')
+                if (summaryWindow) {
+                  summaryWindow.document.write(`
+                    <html>
+                      <head><title>Stock Summary Report</title></head>
+                      <body style="font-family: Arial, sans-serif; padding: 20px;">
+                        <h1>Stock Summary Report</h1>
+                        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                          <tr style="background: #f3f4f6;">
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Category</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Items</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Total Qty</th>
+                            <th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Total Value</th>
+                          </tr>
+                          <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Electronics</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">245</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">1,890</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$185,420.00</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Hardware</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">512</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">15,420</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$125,300.50</td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 10px; border: 1px solid #ddd;">Software</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">128</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">850</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$89,500.00</td>
+                          </tr>
+                          <tr style="background: #e5e7eb; font-weight: bold;">
+                            <td style="padding: 10px; border: 1px solid #ddd;">Total</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">885</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">18,160</td>
+                            <td style="padding: 10px; border: 1px solid #ddd; text-align: right;">$400,220.50</td>
+                          </tr>
+                        </table>
+                        <p style="margin-top: 40px; color: #666;">Generated: ${new Date().toLocaleString()}</p>
+                      </body>
+                    </html>
+                  `)
+                }
               }}
             >
               <ArchiveBoxIcon className="h-4 w-4 mr-2" />

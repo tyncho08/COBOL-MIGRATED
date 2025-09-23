@@ -214,7 +214,26 @@ export default function SalesInvoicesPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle view invoice details
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Invoice Details</h2>
+                    <div style="margin-bottom:1rem">
+                      <strong>Invoice Number:</strong> ${invoice.invoice_number}<br>
+                      <strong>Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}<br>
+                      <strong>Customer:</strong> ${invoice.customer_code} - ${invoice.customer_name}<br>
+                      <strong>Total:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.gross_total)}<br>
+                      <strong>Balance:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.balance)}<br>
+                      <strong>Status:</strong> ${invoice.invoice_status}${invoice.is_paid ? ' (Paid)' : ''}
+                    </div>
+                    <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EyeIcon className="h-4 w-4" />
@@ -222,8 +241,27 @@ export default function SalesInvoicesPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Handle print invoice
+              onClick={async () => {
+                try {
+                  const response = await fetch(`/api/v1/sales/invoices/${invoice.id}/print`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  if (response.ok) {
+                    const blob = await response.blob()
+                    const url = window.URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `invoice-${invoice.invoice_number}.pdf`
+                    link.click()
+                    window.URL.revokeObjectURL(url)
+                  } else {
+                    console.error('Failed to print invoice')
+                  }
+                } catch (error) {
+                  console.error('Error printing invoice:', error)
+                }
               }}
             >
               <PrinterIcon className="h-4 w-4" />
@@ -232,7 +270,55 @@ export default function SalesInvoicesPage() {
               size="sm"
               variant="outline"
               onClick={() => {
-                // Handle email invoice
+                const modal = document.createElement('div')
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000'
+                modal.innerHTML = `
+                  <div style="background:white;padding:2rem;border-radius:8px;max-width:500px;width:90%">
+                    <h2 style="font-size:1.5rem;font-weight:bold;margin-bottom:1rem">Email Invoice</h2>
+                    <form id="emailForm">
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">To:</label>
+                        <input type="email" name="to" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="${invoice.customer_email || ''}" required>
+                      </div>
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Subject:</label>
+                        <input type="text" name="subject" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="Invoice ${invoice.invoice_number}" required>
+                      </div>
+                      <div style="margin-bottom:1rem">
+                        <label style="display:block;margin-bottom:0.25rem">Message:</label>
+                        <textarea name="message" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" rows="4">Please find attached invoice ${invoice.invoice_number}. Total amount due: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.balance)}</textarea>
+                      </div>
+                      <div style="display:flex;gap:0.5rem">
+                        <button type="submit" style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer">Send</button>
+                        <button type="button" style="background:#6b7280;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.parentElement.parentElement.remove()">Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                `
+                document.body.appendChild(modal)
+                modal.querySelector('#emailForm').onsubmit = async (e) => {
+                  e.preventDefault()
+                  const formData = new FormData(e.target)
+                  try {
+                    const response = await fetch(`/api/v1/sales/invoices/${invoice.id}/email`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                      },
+                      body: JSON.stringify(Object.fromEntries(formData))
+                    })
+                    if (response.ok) {
+                      modal.remove()
+                      alert('Invoice emailed successfully')
+                    }
+                  } catch (error) {
+                    console.error('Error emailing invoice:', error)
+                  }
+                }
+                modal.onclick = (e) => {
+                  if (e.target === modal) modal.remove()
+                }
               }}
             >
               <EnvelopeIcon className="h-4 w-4" />
@@ -241,8 +327,27 @@ export default function SalesInvoicesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle post to GL
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to post invoice ${invoice.invoice_number} to General Ledger?`)) {
+                    try {
+                      const response = await fetch(`/api/v1/sales/invoices/${invoice.id}/post-gl`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        }
+                      })
+                      if (response.ok) {
+                        alert('Invoice posted to GL successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to post invoice to GL')
+                      }
+                    } catch (error) {
+                      console.error('Error posting to GL:', error)
+                      alert('Error posting invoice to GL')
+                    }
+                  }
                 }}
               >
                 <DocumentCheckIcon className="h-4 w-4" />
@@ -252,8 +357,30 @@ export default function SalesInvoicesPage() {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  // Handle reverse invoice
+                onClick={async () => {
+                  if (confirm(`Are you sure you want to reverse invoice ${invoice.invoice_number}? This will create a credit note.`)) {
+                    try {
+                      const response = await fetch(`/api/v1/sales/invoices/${invoice.id}/reverse`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        },
+                        body: JSON.stringify({
+                          reason: prompt('Enter reason for reversal:') || 'Customer request'
+                        })
+                      })
+                      if (response.ok) {
+                        alert('Invoice reversed successfully')
+                        window.location.reload()
+                      } else {
+                        alert('Failed to reverse invoice')
+                      }
+                    } catch (error) {
+                      console.error('Error reversing invoice:', error)
+                      alert('Error reversing invoice')
+                    }
+                  }
                 }}
               >
                 <ArrowPathIcon className="h-4 w-4" />
@@ -357,8 +484,36 @@ export default function SalesInvoicesPage() {
           <div className="flex space-x-2">
             <Button 
               variant="outline"
-              onClick={() => {
-                // Handle aging report
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/v1/sales/invoices/aging-report', {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                  })
+                  const data = await response.json()
+                  // Create a simple report display
+                  const reportWindow = window.open('', '_blank')
+                  if (reportWindow) {
+                    reportWindow.document.write(`
+                      <html>
+                        <head><title>Sales Aging Report</title></head>
+                        <body>
+                          <h1>Sales Aging Report</h1>
+                          <table border="1" style="border-collapse:collapse">
+                            <tr><th>Customer</th><th>Current</th><th>30 Days</th><th>60 Days</th><th>90+ Days</th></tr>
+                            ${data.report_data?.map((row: any) => 
+                              `<tr><td>${row.customer}</td><td>$${row.current}</td><td>$${row['30_days']}</td><td>$${row['60_days']}</td><td>$${row['90_days']}</td></tr>`
+                            ).join('')}
+                          </table>
+                          <p>Generated: ${new Date().toLocaleString()}</p>
+                        </body>
+                      </html>
+                    `)
+                  }
+                } catch (error) {
+                  console.error('Failed to generate aging report:', error)
+                }
               }}
             >
               Aging Report

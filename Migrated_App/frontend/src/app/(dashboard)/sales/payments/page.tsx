@@ -18,8 +18,9 @@ import {
   DocumentTextIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { salesApi } from '@/lib/api/sales'
 
-// Types
+// Types - CustomerPayment interface should match salesApi
 interface CustomerPayment {
   id: number
   payment_number: string
@@ -51,76 +52,7 @@ const customerPaymentSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockCustomerPayments: CustomerPayment[] = [
-  {
-    id: 1,
-    payment_number: 'PAY001234',
-    payment_date: '2024-01-15',
-    customer_id: 1,
-    customer_code: 'CUST001',
-    customer_name: 'ABC Corporation',
-    payment_method: 'BANK_TRANSFER',
-    reference: 'TXN-2024-001',
-    payment_amount: 1500.00,
-    allocated_amount: 1500.00,
-    unallocated_amount: 0.00,
-    bank_account: 'MAIN',
-    bank_reference: 'FT240115001',
-    is_allocated: true,
-    is_reversed: false,
-    gl_posted: true,
-  },
-  {
-    id: 2,
-    payment_number: 'PAY001235',
-    payment_date: '2024-01-16',
-    customer_id: 2,
-    customer_code: 'CUST002',
-    customer_name: 'XYZ Ltd',
-    payment_method: 'CHEQUE',
-    reference: 'CHQ-789456',
-    payment_amount: 1440.00,
-    allocated_amount: 1440.00,
-    unallocated_amount: 0.00,
-    bank_account: 'MAIN',
-    is_allocated: true,
-    is_reversed: false,
-    gl_posted: true,
-  },
-  {
-    id: 3,
-    payment_number: 'PAY001236',
-    payment_date: '2024-01-17',
-    customer_id: 1,
-    customer_code: 'CUST001',
-    customer_name: 'ABC Corporation',
-    payment_method: 'CASH',
-    payment_amount: 250.00,
-    allocated_amount: 0.00,
-    unallocated_amount: 250.00,
-    is_allocated: false,
-    is_reversed: false,
-    gl_posted: true,
-    notes: 'Payment on account',
-  },
-  {
-    id: 4,
-    payment_number: 'PAY001237',
-    payment_date: '2024-01-18',
-    customer_id: 3,
-    customer_code: 'CUST003',
-    customer_name: 'Tech Solutions Inc',
-    payment_method: 'CARD',
-    reference: 'CARD-****1234',
-    payment_amount: 500.00,
-    allocated_amount: 500.00,
-    unallocated_amount: 0.00,
-    is_allocated: true,
-    is_reversed: false,
-    gl_posted: false,
-  },
-]
+// Data will come from API
 
 const getPaymentMethodBadge = (method: string) => {
   switch (method) {
@@ -155,9 +87,10 @@ export default function CustomerPaymentsPage() {
   const [showAllocationModal, setShowAllocationModal] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<CustomerPayment | null>(null)
 
-  const { data: customerPayments, isLoading } = useQuery({
+  const { data: customerPayments, isLoading, error } = useQuery({
     queryKey: ['customer-payments'],
-    queryFn: () => Promise.resolve(mockCustomerPayments),
+    queryFn: () => salesApi.payments.getAll(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   const columns: ColumnDef<CustomerPayment>[] = [
@@ -406,6 +339,10 @@ export default function CustomerPaymentsPage() {
 
   if (isLoading) {
     return <div>Loading...</div>
+  }
+
+  if (error) {
+    return <div>Error loading customer payments. Please try again later.</div>
   }
 
   return (

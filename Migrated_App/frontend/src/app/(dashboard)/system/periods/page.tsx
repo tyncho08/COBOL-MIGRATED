@@ -22,6 +22,7 @@ import {
   CheckCircleIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { systemApi } from '@/lib/api/system'
 
 // Types
 interface Period {
@@ -63,130 +64,6 @@ const periodSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockPeriods: Period[] = [
-  {
-    id: 1,
-    period_number: 1,
-    period_name: 'January 2024',
-    year_number: 2024,
-    start_date: '2024-01-01',
-    end_date: '2024-01-31',
-    period_type: 'REGULAR',
-    status: 'CLOSED',
-    is_current: false,
-    posting_allowed: false,
-    closed_by: 'System Admin',
-    closed_date: '2024-02-05T17:00:00Z',
-    locked_by: 'CFO',
-    locked_date: '2024-02-10T09:00:00Z',
-    last_posting_date: '2024-02-04T23:59:59Z',
-    transaction_count: 1250,
-    total_debits: 875000.00,
-    total_credits: 875000.00,
-    module_status: {
-      gl: 'CLOSED',
-      ar: 'CLOSED',
-      ap: 'CLOSED',
-      inv: 'CLOSED',
-    },
-    notes: 'Month-end close completed successfully',
-  },
-  {
-    id: 2,
-    period_number: 2,
-    period_name: 'February 2024',
-    year_number: 2024,
-    start_date: '2024-02-01',
-    end_date: '2024-02-29',
-    period_type: 'REGULAR',
-    status: 'OPEN',
-    is_current: true,
-    posting_allowed: true,
-    last_posting_date: '2024-02-15T14:30:00Z',
-    transaction_count: 856,
-    total_debits: 650000.00,
-    total_credits: 650000.00,
-    module_status: {
-      gl: 'OPEN',
-      ar: 'OPEN',
-      ap: 'OPEN',
-      inv: 'OPEN',
-    },
-    notes: 'Current active period',
-  },
-  {
-    id: 3,
-    period_number: 3,
-    period_name: 'March 2024',
-    year_number: 2024,
-    start_date: '2024-03-01',
-    end_date: '2024-03-31',
-    period_type: 'REGULAR',
-    status: 'FUTURE',
-    is_current: false,
-    posting_allowed: false,
-    transaction_count: 0,
-    total_debits: 0.00,
-    total_credits: 0.00,
-    module_status: {
-      gl: 'FUTURE',
-      ar: 'FUTURE',
-      ap: 'FUTURE',
-      inv: 'FUTURE',
-    },
-    notes: 'Future period - not yet active',
-  },
-  {
-    id: 13,
-    period_number: 13,
-    period_name: 'Year End Adjustments 2024',
-    year_number: 2024,
-    start_date: '2024-12-31',
-    end_date: '2024-12-31',
-    period_type: 'ADJUSTMENT',
-    status: 'FUTURE',
-    is_current: false,
-    posting_allowed: false,
-    transaction_count: 0,
-    total_debits: 0.00,
-    total_credits: 0.00,
-    module_status: {
-      gl: 'FUTURE',
-      ar: 'CLOSED',
-      ap: 'CLOSED',
-      inv: 'CLOSED',
-    },
-    notes: 'Year-end adjustment period',
-  },
-  {
-    id: 14,
-    period_number: 12,
-    period_name: 'December 2023',
-    year_number: 2023,
-    start_date: '2023-12-01',
-    end_date: '2023-12-31',
-    period_type: 'REGULAR',
-    status: 'ARCHIVED',
-    is_current: false,
-    posting_allowed: false,
-    closed_by: 'System Admin',
-    closed_date: '2024-01-15T17:00:00Z',
-    locked_by: 'CFO',
-    locked_date: '2024-01-20T09:00:00Z',
-    last_posting_date: '2024-01-10T23:59:59Z',
-    transaction_count: 1485,
-    total_debits: 1250000.00,
-    total_credits: 1250000.00,
-    module_status: {
-      gl: 'ARCHIVED',
-      ar: 'ARCHIVED',
-      ap: 'ARCHIVED',
-      inv: 'ARCHIVED',
-    },
-    notes: 'Prior year period - archived',
-  },
-]
 
 const getPeriodTypeBadge = (type: string) => {
   switch (type) {
@@ -246,9 +123,10 @@ export default function PeriodsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedPeriod, setSelectedPeriod] = useState<Period | null>(null)
 
-  const { data: periods, isLoading } = useQuery({
+  const { data: periods, isLoading, error } = useQuery({
     queryKey: ['periods'],
-    queryFn: () => Promise.resolve(mockPeriods),
+    queryFn: () => systemApi.periods.getAll(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   const columns: ColumnDef<Period>[] = [
@@ -551,6 +429,10 @@ export default function PeriodsPage() {
 
   if (isLoading) {
     return <div>Loading...</div>
+  }
+
+  if (error) {
+    return <div>Error loading periods. Please try again later.</div>
   }
 
   return (

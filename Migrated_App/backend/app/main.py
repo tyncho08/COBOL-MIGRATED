@@ -32,6 +32,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# API routers will be added as needed
+
 # Mock users database - Complete ACAS users
 MOCK_USERS = {
     "admin": {
@@ -265,15 +267,277 @@ def get_periods(current_user: dict = Depends(require_read)):
     """System Periods - COBOL period control equivalent"""
     return {"data": [], "message": "Periods endpoint ready"}
 
-@app.get("/api/v1/system/config")
-def get_system_config(current_user: dict = Depends(require_read)):
-    """System Configuration - COBOL system parameters equivalent"""
+# System config endpoint moved below
+
+@app.get("/api/v1/system/dashboard-stats")
+def get_dashboard_statistics(current_user: dict = Depends(require_read)):
+    """
+    Get dashboard statistics
+    
+    Returns real-time statistics to replace frontend mock data
+    """
+    # For now, return mock data that matches the expected structure
+    # In a real implementation, this would query the database
     return {
-        "company_name": "ACAS Migrated Demo", 
-        "financial_year": "2024",
-        "base_currency": "USD",
-        "message": "System config endpoint ready"
+        "stats": {
+            "totalPurchaseOrders": 156,
+            "pendingApprovals": 12,
+            "stockItems": 2847,
+            "lowStockItems": 23,
+            "totalSuppliers": 89,
+            "activeSuppliers": 67,
+            "openPeriods": 1,
+            "journalEntries": 1234,
+            "totalSalesOrders": 45,
+            "totalSalesInvoices": 78,
+            "outstandingInvoices": 15,
+            "totalCustomers": 25
+        },
+        "recentActivity": [
+            {
+                "id": "po_1",
+                "type": "purchase_order",
+                "description": "Purchase Order PO001156 created",
+                "timestamp": datetime.now().isoformat(),
+                "status": "pending"
+            },
+            {
+                "id": "inv_1",
+                "type": "sales_invoice",
+                "description": "Sales Invoice INV001078 created", 
+                "timestamp": (datetime.now() - timedelta(hours=1)).isoformat(),
+                "status": "posted"
+            },
+            {
+                "id": "je_1",
+                "type": "journal_entry",
+                "description": "Journal Entry JE001234 posted",
+                "timestamp": (datetime.now() - timedelta(hours=2)).isoformat(),
+                "status": "posted"
+            }
+        ],
+        "generatedAt": datetime.now().isoformat()
     }
+
+@app.get("/api/v1/sales/invoices")
+def get_sales_invoices(current_user: dict = Depends(require_read)):
+    """Get sales invoices - temporary mock data until DB is properly seeded"""
+    return [
+        {
+            "id": 1,
+            "invoice_number": "INV001021",
+            "invoice_date": "2024-01-15",
+            "invoice_type": "INVOICE",
+            "customer_id": 1,
+            "customer_code": "CUST001",
+            "customer_name": "ABC Corporation",
+            "customer_reference": "PO-2024-001",
+            "order_number": "SO001021",
+            "due_date": "2024-02-14",
+            "goods_total": 2500.00,
+            "vat_total": 500.00,
+            "gross_total": 3000.00,
+            "amount_paid": 1500.00,
+            "balance": 1500.00,
+            "is_paid": False,
+            "gl_posted": True,
+            "invoice_status": "POSTED",
+            "print_count": 2
+        },
+        {
+            "id": 2,
+            "invoice_number": "INV001022",
+            "invoice_date": "2024-01-16",
+            "invoice_type": "INVOICE",
+            "customer_id": 2,
+            "customer_code": "CUST002",
+            "customer_name": "XYZ Industries",
+            "customer_reference": "REQ-456",
+            "order_number": "SO001022",
+            "due_date": "2024-02-15",
+            "goods_total": 1800.00,
+            "vat_total": 360.00,
+            "gross_total": 2160.00,
+            "amount_paid": 0.00,
+            "balance": 2160.00,
+            "is_paid": False,
+            "gl_posted": True,
+            "invoice_status": "POSTED", 
+            "print_count": 1
+        },
+        {
+            "id": 3,
+            "invoice_number": "INV001023",
+            "invoice_date": "2024-01-17",
+            "invoice_type": "INVOICE",
+            "customer_id": 3,
+            "customer_code": "CUST003",
+            "customer_name": "TechSolutions Inc",
+            "customer_reference": "PROJ-789",
+            "order_number": "SO001023",
+            "due_date": "2024-02-16",
+            "goods_total": 4200.00,
+            "vat_total": 840.00,
+            "gross_total": 5040.00,
+            "amount_paid": 5040.00,
+            "balance": 0.00,
+            "is_paid": True,
+            "gl_posted": True,
+            "invoice_status": "PAID",
+            "print_count": 3
+        }
+    ]
+
+@app.get("/api/v1/sales/payments")
+def get_sales_payments(current_user: dict = Depends(require_read)):
+    """Get customer payments - temporary mock data until DB is properly seeded"""
+    return [
+        {
+            "id": 1,
+            "payment_number": "PAY001021",
+            "payment_date": "2024-01-15",
+            "customer_id": 1,
+            "customer_code": "CUST001",
+            "customer_name": "ABC Corporation",
+            "payment_method": "BANK_TRANSFER",
+            "reference": "TXN-15012024-001",
+            "payment_amount": 1500.00,
+            "allocated_amount": 1500.00,
+            "unallocated_amount": 0.00,
+            "bank_account": "MAIN_CURRENT",
+            "bank_reference": "BGC-2024-001234",
+            "is_allocated": True,
+            "is_reversed": False,
+            "gl_posted": True,
+            "notes": "Payment for Invoice INV001021"
+        },
+        {
+            "id": 2,
+            "payment_number": "PAY001022",
+            "payment_date": "2024-01-16",
+            "customer_id": 2,
+            "customer_code": "CUST002", 
+            "customer_name": "XYZ Industries",
+            "payment_method": "CHEQUE",
+            "reference": "CHQ-789456",
+            "payment_amount": 2160.00,
+            "allocated_amount": 0.00,
+            "unallocated_amount": 2160.00,
+            "bank_account": "MAIN_CURRENT",
+            "bank_reference": None,
+            "is_allocated": False,
+            "is_reversed": False,
+            "gl_posted": True,
+            "notes": "Unallocated payment - awaiting invoice"
+        },
+        {
+            "id": 3,
+            "payment_number": "PAY001023",
+            "payment_date": "2024-01-17",
+            "customer_id": 3,
+            "customer_code": "CUST003",
+            "customer_name": "TechSolutions Inc",
+            "payment_method": "CREDIT_CARD",
+            "reference": "CC-5040-****-1234",
+            "payment_amount": 5040.00,
+            "allocated_amount": 5040.00,
+            "unallocated_amount": 0.00,
+            "bank_account": "MERCHANT_ACCOUNT",
+            "bank_reference": "STRIPE-xyz789",
+            "is_allocated": True,
+            "is_reversed": False,
+            "gl_posted": True,
+            "notes": "Online payment - full invoice settlement"
+        }
+    ]
+
+@app.get("/api/v1/system/config")
+def get_system_config_list(current_user: dict = Depends(require_read)):
+    """Get system configuration list - temporary mock data until DB is properly seeded"""
+    return [
+        {
+            "id": 1,
+            "config_key": "COMPANY_NAME",
+            "config_name": "Company Name",
+            "config_value": "ACAS Demo Company",
+            "data_type": "STRING",
+            "category": "COMPANY",
+            "description": "Legal company name for reports and documents",
+            "is_encrypted": False,
+            "is_required": True,
+            "is_user_editable": True,
+            "default_value": "ACAS Demo Company",
+            "last_modified_by": "admin",
+            "last_modified_date": "2024-01-15T10:30:00Z",
+            "requires_restart": False
+        },
+        {
+            "id": 2,
+            "config_key": "BASE_CURRENCY",
+            "config_name": "Base Currency",
+            "config_value": "USD",
+            "data_type": "STRING",
+            "category": "FINANCE",
+            "description": "Default currency for all transactions",
+            "is_encrypted": False,
+            "is_required": True,
+            "is_user_editable": True,
+            "default_value": "USD",
+            "allowed_values": ["USD", "EUR", "GBP", "CAD"],
+            "last_modified_by": "admin",
+            "last_modified_date": "2024-01-15T10:30:00Z",
+            "requires_restart": True
+        },
+        {
+            "id": 3,
+            "config_key": "VAT_RATE",
+            "config_name": "Default VAT Rate",
+            "config_value": "20.0",
+            "data_type": "DECIMAL",
+            "category": "TAX",
+            "description": "Standard VAT rate percentage",
+            "is_encrypted": False,
+            "is_required": True,
+            "is_user_editable": True,
+            "default_value": "20.0",
+            "last_modified_by": "admin",
+            "last_modified_date": "2024-01-15T10:30:00Z",
+            "requires_restart": False,
+            "validation_pattern": "^[0-9]+(\\.[0-9]+)?$"
+        },
+        {
+            "id": 4,
+            "config_key": "SESSION_TIMEOUT",
+            "config_name": "Session Timeout (minutes)",
+            "config_value": "30",
+            "data_type": "INTEGER",
+            "category": "SECURITY",
+            "description": "User session timeout in minutes",
+            "is_encrypted": False,
+            "is_required": True,
+            "is_user_editable": True,
+            "default_value": "30",
+            "last_modified_by": "admin",
+            "last_modified_date": "2024-01-15T10:30:00Z",
+            "requires_restart": False
+        },
+        {
+            "id": 5,
+            "config_key": "DB_CONNECTION_STRING",
+            "config_name": "Database Connection",
+            "config_value": "postgresql://user:***@localhost:5432/acas",
+            "data_type": "STRING",
+            "category": "DATABASE",
+            "description": "Database connection string",
+            "is_encrypted": True,
+            "is_required": True,
+            "is_user_editable": False,
+            "default_value": "",
+            "last_modified_by": "system",
+            "last_modified_date": "2024-01-15T10:30:00Z",
+            "requires_restart": True
+        }
+    ]
 
 # Print endpoints
 @app.get("/api/v1/purchase/orders/{order_id}/print")

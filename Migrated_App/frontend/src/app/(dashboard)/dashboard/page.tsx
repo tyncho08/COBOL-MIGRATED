@@ -13,70 +13,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
-
-// Mock dashboard data
-const mockDashboardData = {
-  stats: {
-    totalPurchaseOrders: 156,
-    pendingApprovals: 12,
-    stockItems: 2847,
-    lowStockItems: 23,
-    totalSuppliers: 89,
-    activeSuppliers: 67,
-    openPeriods: 1,
-    journalEntries: 1234
-  },
-  recentActivity: [
-    {
-      id: 1,
-      type: 'purchase_order',
-      description: 'Purchase Order PO000156 created',
-      timestamp: '2024-01-20T10:30:00Z',
-      status: 'pending'
-    },
-    {
-      id: 2,
-      type: 'goods_receipt',
-      description: 'Goods Receipt GR000089 posted',
-      timestamp: '2024-01-20T09:15:00Z',
-      status: 'completed'
-    },
-    {
-      id: 3,
-      type: 'journal_entry',
-      description: 'Journal Entry JE001234 posted',
-      timestamp: '2024-01-20T08:45:00Z',
-      status: 'completed'
-    },
-    {
-      id: 4,
-      type: 'stock_take',
-      description: 'Stock Take ST000012 started',
-      timestamp: '2024-01-19T16:20:00Z',
-      status: 'in_progress'
-    }
-  ],
-  alerts: [
-    {
-      id: 1,
-      type: 'warning',
-      message: '23 stock items are below reorder level',
-      action: 'Review Stock'
-    },
-    {
-      id: 2,
-      type: 'info',
-      message: '12 purchase orders pending approval',
-      action: 'Review Orders'
-    },
-    {
-      id: 3,
-      type: 'warning',
-      message: 'Period 12/2023 closing due in 3 days',
-      action: 'Period End'
-    }
-  ]
-}
+import { systemApi } from '@/lib/api/system'
 
 const getActivityIcon = (type: string) => {
   switch (type) {
@@ -115,27 +52,71 @@ interface DashboardStats {
   activeSuppliers: number
   openPeriods: number
   journalEntries: number
+  totalSalesOrders?: number
+  totalSalesInvoices?: number
+  outstandingInvoices?: number
+  totalCustomers?: number
+}
+
+interface DashboardActivity {
+  id: string
+  type: string
+  description: string
+  timestamp: string
+  status: string
 }
 
 interface DashboardData {
   stats: DashboardStats
-  recentActivity: any[]
-  alerts: any[]
+  recentActivity: DashboardActivity[]
+  generatedAt: string
 }
 
 export default function DashboardPage() {
-  const { data: dashboardData, isLoading } = useQuery<DashboardData>({
+  const { data: dashboardData, isLoading, error } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
-    queryFn: () => Promise.resolve(mockDashboardData),
+    queryFn: () => systemApi.dashboardStats(),
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 15000, // Consider data stale after 15 seconds
   })
 
   if (isLoading) {
     return <div>Loading dashboard...</div>
   }
 
+  if (error) {
+    return <div>Error loading dashboard data. Please try again later.</div>
+  }
+
   const stats = dashboardData?.stats || {} as DashboardStats
   const recentActivity = dashboardData?.recentActivity || []
-  const alerts = dashboardData?.alerts || []
+  
+  // Generate alerts from stats data
+  const alerts = []
+  if (stats.lowStockItems > 0) {
+    alerts.push({
+      id: 1,
+      type: 'warning',
+      message: `${stats.lowStockItems} stock items are below reorder level`,
+      action: 'Review Stock'
+    })
+  }
+  if (stats.pendingApprovals > 0) {
+    alerts.push({
+      id: 2,
+      type: 'info', 
+      message: `${stats.pendingApprovals} purchase orders pending approval`,
+      action: 'Review Orders'
+    })
+  }
+  if (stats.outstandingInvoices && stats.outstandingInvoices > 0) {
+    alerts.push({
+      id: 3,
+      type: 'warning',
+      message: `${stats.outstandingInvoices} invoices outstanding`,
+      action: 'Review Payments'
+    })
+  }
 
   return (
     <div>

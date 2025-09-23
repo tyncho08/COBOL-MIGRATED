@@ -19,29 +19,7 @@ import {
   DocumentCheckIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
-
-// Types
-interface SalesInvoice {
-  id: number
-  invoice_number: string
-  invoice_date: string
-  invoice_type: string
-  customer_id: number
-  customer_code: string
-  customer_name: string
-  customer_reference?: string
-  order_number?: string
-  due_date: string
-  goods_total: number
-  vat_total: number
-  gross_total: number
-  amount_paid: number
-  balance: number
-  is_paid: boolean
-  gl_posted: boolean
-  invoice_status: string
-  print_count: number
-}
+import { salesApi, SalesInvoice } from '@/lib/api/sales'
 
 // Schema
 const salesInvoiceSchema = z.object({
@@ -64,71 +42,7 @@ const salesInvoiceSchema = z.object({
   })).min(1, 'At least one invoice line is required'),
 })
 
-// Mock data
-const mockSalesInvoices: SalesInvoice[] = [
-  {
-    id: 1,
-    invoice_number: 'INV001234',
-    invoice_date: '2024-01-15',
-    invoice_type: 'INVOICE',
-    customer_id: 1,
-    customer_code: 'CUST001',
-    customer_name: 'ABC Corporation',
-    customer_reference: 'PO-2024-001',
-    order_number: 'SO001234',
-    due_date: '2024-02-14',
-    goods_total: 2500.00,
-    vat_total: 500.00,
-    gross_total: 3000.00,
-    amount_paid: 1500.00,
-    balance: 1500.00,
-    is_paid: false,
-    gl_posted: true,
-    invoice_status: 'POSTED',
-    print_count: 2,
-  },
-  {
-    id: 2,
-    invoice_number: 'INV001235',
-    invoice_date: '2024-01-16',
-    invoice_type: 'INVOICE',
-    customer_id: 2,
-    customer_code: 'CUST002',
-    customer_name: 'XYZ Ltd',
-    customer_reference: 'REQ-456',
-    order_number: 'SO001235',
-    due_date: '2024-02-15',
-    goods_total: 1200.00,
-    vat_total: 240.00,
-    gross_total: 1440.00,
-    amount_paid: 1440.00,
-    balance: 0.00,
-    is_paid: true,
-    gl_posted: true,
-    invoice_status: 'POSTED',
-    print_count: 1,
-  },
-  {
-    id: 3,
-    invoice_number: 'CN001001',
-    invoice_date: '2024-01-17',
-    invoice_type: 'CREDIT_NOTE',
-    customer_id: 3,
-    customer_code: 'CUST003',
-    customer_name: 'Tech Solutions Inc',
-    order_number: 'SO001236',
-    due_date: '2024-02-16',
-    goods_total: -500.00,
-    vat_total: -100.00,
-    gross_total: -600.00,
-    amount_paid: 0.00,
-    balance: -600.00,
-    is_paid: false,
-    gl_posted: false,
-    invoice_status: 'PENDING',
-    print_count: 0,
-  },
-]
+// Data will come from API
 
 const getInvoiceTypeBadge = (type: string) => {
   switch (type) {
@@ -169,9 +83,10 @@ export default function SalesInvoicesPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null)
 
-  const { data: salesInvoices, isLoading } = useQuery({
+  const { data: salesInvoices, isLoading, error } = useQuery({
     queryKey: ['sales-invoices'],
-    queryFn: () => Promise.resolve(mockSalesInvoices),
+    queryFn: () => salesApi.invoices.getAll(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   const columns: ColumnDef<SalesInvoice>[] = [
@@ -423,6 +338,10 @@ export default function SalesInvoicesPage() {
 
   if (isLoading) {
     return <div>Loading...</div>
+  }
+
+  if (error) {
+    return <div>Error loading sales invoices. Please try again later.</div>
   }
 
   return (

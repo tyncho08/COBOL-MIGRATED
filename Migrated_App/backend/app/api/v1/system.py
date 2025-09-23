@@ -2,11 +2,12 @@
 System API Router
 REST endpoints for system administration
 """
-from typing import List, Optional
-from datetime import date
+from typing import List, Optional, Dict, Any
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func, and_
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
@@ -343,3 +344,140 @@ def get_database_info(db: Session = Depends(get_db)):
             "status": "error",
             "error": str(e)
         }
+
+
+@router.get("/dashboard-stats", response_model=Dict[str, Any])
+def get_dashboard_statistics(db: Session = Depends(get_db)):
+    """
+    Get dashboard statistics
+    
+    Returns real-time statistics from the database to replace frontend mock data
+    """
+    try:
+        # Import models - using imports here to avoid circular dependencies
+        from app.models.purchase_transactions import PurchaseOrder
+        from app.models.stock import StockItem, StockMovement
+        from app.models.suppliers import Supplier
+        from app.models.system import CompanyPeriod
+        from app.models.general_ledger import JournalEntry
+        from app.models.transactions import SalesInvoice, SalesOrder
+        from app.models.customers import Customer
+        
+        # Calculate statistics
+        stats = {}
+        
+        # Purchase Orders
+        total_purchase_orders = db.query(func.count(PurchaseOrder.id)).scalar() or 0
+        pending_approvals = db.query(func.count(PurchaseOrder.id)).filter(
+            PurchaseOrder.order_status == "PENDING"
+        ).scalar() or 0
+        
+        # Stock Items
+        total_stock_items = db.query(func.count(StockItem.id)).scalar() or 0
+        low_stock_items = db.query(func.count(StockItem.id)).filter(
+            and_(
+                StockItem.quantity_on_hand <= StockItem.reorder_level,
+                StockItem.is_stocked == True
+            )
+        ).scalar() or 0
+        
+        # Suppliers
+        total_suppliers = db.query(func.count(Supplier.id)).scalar() or 0
+        active_suppliers = db.query(func.count(Supplier.id)).filter(
+            Supplier.is_active == True
+        ).scalar() or 0
+        
+        # Periods
+        open_periods = db.query(func.count(CompanyPeriod.id)).filter(
+            CompanyPeriod.is_open == True
+        ).scalar() or 0
+        
+        # Journal Entries
+        total_journal_entries = db.query(func.count(JournalEntry.id)).scalar() or 0
+        
+        # Sales
+        total_sales_orders = db.query(func.count(SalesOrder.id)).scalar() or 0
+        total_sales_invoices = db.query(func.count(SalesInvoice.id)).scalar() or 0
+        outstanding_invoices = db.query(func.count(SalesInvoice.id)).filter(
+            SalesInvoice.is_paid == False
+        ).scalar() or 0
+        
+        # Customers
+        total_customers = db.query(func.count(Customer.id)).scalar() or 0
+        
+        # Recent Activity (last 7 days)
+        recent_date = datetime.now() - timedelta(days=7)
+        
+        recent_orders = db.query(PurchaseOrder).filter(
+            PurchaseOrder.order_date >= recent_date
+        ).order_by(PurchaseOrder.order_date.desc()).limit(5).all()
+        
+        recent_invoices = db.query(SalesInvoice).filter(
+            SalesInvoice.invoice_date >= recent_date
+        ).order_by(SalesInvoice.invoice_date.desc()).limit(5).all()
+        
+        recent_journal_entries = db.query(JournalEntry).filter(
+            JournalEntry.journal_date >= recent_date
+        ).order_by(JournalEntry.journal_date.desc()).limit(3).all()
+        
+        # Build activity list
+        recent_activity = []
+        
+        # Add recent purchase orders
+        for order in recent_orders:
+            recent_activity.append({
+                "id": f"po_{order.id}",
+                "type": "purchase_order",
+                "description": f"Purchase Order {order.order_number} created",
+                "timestamp": order.order_date.isoformat() if order.order_date else None,
+                "status": order.order_status.lower() if order.order_status else "unknown"
+            })
+        
+        # Add recent invoices
+        for invoice in recent_invoices:
+            recent_activity.append({
+                "id": f"inv_{invoice.id}",
+                "type": "sales_invoice", 
+                "description": f"Sales Invoice {invoice.invoice_number} created",
+                "timestamp": invoice.invoice_date.isoformat() if invoice.invoice_date else None,
+                "status": "paid" if invoice.is_paid else "pending"
+            })
+        
+        # Add recent journal entries
+        for je in recent_journal_entries:
+            recent_activity.append({
+                "id": f"je_{je.id}",
+                "type": "journal_entry",
+                "description": f"Journal Entry {je.journal_number} posted",
+                "timestamp": je.journal_date.isoformat() if je.journal_date else None,
+                "status": "posted" if je.is_posted else "draft"
+            })
+        
+        # Sort activity by timestamp (most recent first)
+        recent_activity.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
+        recent_activity = recent_activity[:10]  # Limit to 10 items
+        
+        return {
+            "stats": {
+                "totalPurchaseOrders": total_purchase_orders,
+                "pendingApprovals": pending_approvals,
+                "stockItems": total_stock_items,
+                "lowStockItems": low_stock_items,
+                "totalSuppliers": total_suppliers,
+                "activeSuppliers": active_suppliers,
+                "openPeriods": open_periods,
+                "journalEntries": total_journal_entries,
+                "totalSalesOrders": total_sales_orders,
+                "totalSalesInvoices": total_sales_invoices,
+                "outstandingInvoices": outstanding_invoices,
+                "totalCustomers": total_customers
+            },
+            "recentActivity": recent_activity,
+            "generatedAt": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calculating dashboard statistics: {str(e)}"
+        )

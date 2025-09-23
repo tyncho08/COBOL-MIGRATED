@@ -23,25 +23,21 @@ import {
   CheckCircleIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { systemApi } from '@/lib/api/system'
 
 // Types
 interface SystemConfig {
   id: number
+  module: string
   config_key: string
-  config_name: string
   config_value: string
-  data_type: string
-  category: string
-  description: string
-  is_encrypted: boolean
-  is_required: boolean
-  is_user_editable: boolean
-  default_value?: string
-  allowed_values?: string[]
-  last_modified_by?: string
-  last_modified_date?: string
-  requires_restart: boolean
-  validation_pattern?: string
+  config_type: string
+  description?: string
+  is_sensitive: boolean
+  can_override: boolean
+  validation_rule?: string
+  last_updated: string
+  updated_by: string
 }
 
 // Schema
@@ -49,188 +45,6 @@ const configSchema = z.object({
   config_value: z.string().min(1, 'Configuration value is required'),
 })
 
-// Mock data
-const mockSystemConfigs: SystemConfig[] = [
-  {
-    id: 1,
-    config_key: 'COMPANY_NAME',
-    config_name: 'Company Name',
-    config_value: 'Applewood Computers Ltd',
-    data_type: 'STRING',
-    category: 'COMPANY',
-    description: 'Legal company name for reports and documents',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '',
-    last_modified_by: 'Admin',
-    last_modified_date: '2024-01-01T10:00:00Z',
-    requires_restart: false,
-  },
-  {
-    id: 2,
-    config_key: 'BASE_CURRENCY',
-    config_name: 'Base Currency',
-    config_value: 'USD',
-    data_type: 'ENUM',
-    category: 'FINANCIAL',
-    description: 'Default currency for the system',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: 'USD',
-    allowed_values: ['USD', 'EUR', 'GBP', 'CAD'],
-    last_modified_by: 'CFO',
-    last_modified_date: '2024-01-01T10:00:00Z',
-    requires_restart: true,
-  },
-  {
-    id: 3,
-    config_key: 'FISCAL_YEAR_START',
-    config_name: 'Fiscal Year Start Month',
-    config_value: '1',
-    data_type: 'INTEGER',
-    category: 'FINANCIAL',
-    description: 'Month when fiscal year begins (1-12)',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '1',
-    last_modified_by: 'CFO',
-    last_modified_date: '2024-01-01T10:00:00Z',
-    requires_restart: true,
-  },
-  {
-    id: 4,
-    config_key: 'MAX_DECIMAL_PLACES',
-    config_name: 'Maximum Decimal Places',
-    config_value: '2',
-    data_type: 'INTEGER',
-    category: 'FINANCIAL',
-    description: 'Maximum decimal places for currency amounts',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '2',
-    last_modified_by: 'Admin',
-    last_modified_date: '2024-01-01T10:00:00Z',
-    requires_restart: false,
-  },
-  {
-    id: 5,
-    config_key: 'SESSION_TIMEOUT',
-    config_name: 'Session Timeout (minutes)',
-    config_value: '30',
-    data_type: 'INTEGER',
-    category: 'SECURITY',
-    description: 'User session timeout in minutes',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '30',
-    last_modified_by: 'Security Admin',
-    last_modified_date: '2024-01-05T14:00:00Z',
-    requires_restart: false,
-  },
-  {
-    id: 6,
-    config_key: 'PASSWORD_MIN_LENGTH',
-    config_name: 'Minimum Password Length',
-    config_value: '8',
-    data_type: 'INTEGER',
-    category: 'SECURITY',
-    description: 'Minimum length for user passwords',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '8',
-    last_modified_by: 'Security Admin',
-    last_modified_date: '2024-01-05T14:00:00Z',
-    requires_restart: false,
-  },
-  {
-    id: 7,
-    config_key: 'BACKUP_RETENTION_DAYS',
-    config_name: 'Backup Retention Period',
-    config_value: '90',
-    data_type: 'INTEGER',
-    category: 'SYSTEM',
-    description: 'Number of days to retain database backups',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '30',
-    last_modified_by: 'DBA',
-    last_modified_date: '2024-01-03T09:00:00Z',
-    requires_restart: false,
-  },
-  {
-    id: 8,
-    config_key: 'EMAIL_SMTP_SERVER',
-    config_name: 'SMTP Server Address',
-    config_value: 'smtp.company.com',
-    data_type: 'STRING',
-    category: 'EMAIL',
-    description: 'SMTP server for sending emails',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '',
-    last_modified_by: 'IT Admin',
-    last_modified_date: '2024-01-02T11:00:00Z',
-    requires_restart: true,
-  },
-  {
-    id: 9,
-    config_key: 'EMAIL_SMTP_PASSWORD',
-    config_name: 'SMTP Password',
-    config_value: '***ENCRYPTED***',
-    data_type: 'STRING',
-    category: 'EMAIL',
-    description: 'SMTP server authentication password',
-    is_encrypted: true,
-    is_required: true,
-    is_user_editable: true,
-    default_value: '',
-    last_modified_by: 'IT Admin',
-    last_modified_date: '2024-01-02T11:00:00Z',
-    requires_restart: true,
-  },
-  {
-    id: 10,
-    config_key: 'AUTO_BACKUP_ENABLED',
-    config_name: 'Automatic Backup Enabled',
-    config_value: 'true',
-    data_type: 'BOOLEAN',
-    category: 'SYSTEM',
-    description: 'Enable automatic database backups',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: 'true',
-    allowed_values: ['true', 'false'],
-    last_modified_by: 'DBA',
-    last_modified_date: '2024-01-01T10:00:00Z',
-    requires_restart: false,
-  },
-  {
-    id: 11,
-    config_key: 'AUDIT_LOG_LEVEL',
-    config_name: 'Audit Log Level',
-    config_value: 'FULL',
-    data_type: 'ENUM',
-    category: 'SECURITY',
-    description: 'Level of audit logging to perform',
-    is_encrypted: false,
-    is_required: true,
-    is_user_editable: true,
-    default_value: 'STANDARD',
-    allowed_values: ['MINIMAL', 'STANDARD', 'FULL', 'DEBUG'],
-    last_modified_by: 'Security Admin',
-    last_modified_date: '2024-01-05T14:00:00Z',
-    requires_restart: false,
-  },
-]
 
 const getCategoryBadge = (category: string) => {
   switch (category) {
@@ -272,9 +86,10 @@ export default function SystemConfigPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedConfig, setSelectedConfig] = useState<SystemConfig | null>(null)
 
-  const { data: systemConfigs, isLoading } = useQuery({
+  const { data: systemConfigs, isLoading, error } = useQuery({
     queryKey: ['system-configs'],
-    queryFn: () => Promise.resolve(mockSystemConfigs),
+    queryFn: () => systemApi.config.getAll(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   const columns: ColumnDef<SystemConfig>[] = [
@@ -470,6 +285,10 @@ export default function SystemConfigPage() {
 
   if (isLoading) {
     return <div>Loading...</div>
+  }
+
+  if (error) {
+    return <div>Error loading system configurations. Please try again later.</div>
   }
 
   return (

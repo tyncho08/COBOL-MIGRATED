@@ -126,7 +126,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:gap-6 mb-8">
         <StatsCard
           title="Purchase Orders"
           value={stats.totalPurchaseOrders}
@@ -166,7 +166,7 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 xl:gap-6">
         {/* Recent Activity */}
         <Card>
           <CardHeader>
@@ -242,7 +242,7 @@ export default function DashboardPage() {
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 lg:gap-4">
             <a
               href="/purchase/orders"
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50"

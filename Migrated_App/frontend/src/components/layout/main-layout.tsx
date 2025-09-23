@@ -20,8 +20,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
         
         {/* Main content area */}
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+          <div className="py-4 lg:py-6">
+            <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12">
               {children}
             </div>
           </div>

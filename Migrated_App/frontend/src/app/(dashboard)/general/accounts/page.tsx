@@ -202,9 +202,9 @@ export default function ChartOfAccountsPage() {
       accessorKey: 'account_code',
       header: 'Account Code',
       cell: ({ row }) => {
-        const level = row.getValue('level') as number || 0
-        const code = row.getValue('account_code') as string
         const account = row.original
+        const level = account.level || 0
+        const code = account.account_code
         const hasChildren = account.is_header
         const isExpanded = expandedRows.has(code)
         

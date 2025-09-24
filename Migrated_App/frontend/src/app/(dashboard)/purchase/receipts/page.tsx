@@ -18,27 +18,8 @@ import {
   ClipboardDocumentIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
-
-// Types
-interface GoodsReceipt {
-  id: number
-  receipt_number: string
-  receipt_date: string
-  supplier_id: number
-  supplier_code: string
-  supplier_name: string
-  order_number?: string
-  delivery_note?: string
-  receipt_status: string
-  total_quantity: number
-  total_value: number
-  goods_received: number
-  outstanding_quantity: number
-  is_complete: boolean
-  gl_posted: boolean
-  received_by: string
-  notes?: string
-}
+import { goodsReceiptsApi, GoodsReceipt } from '@/lib/api/goods-receipts'
+import toast from 'react-hot-toast'
 
 // Schema
 const goodsReceiptSchema = z.object({
@@ -54,65 +35,6 @@ const goodsReceiptSchema = z.object({
   })).min(1, 'At least one receipt line is required'),
 })
 
-// Mock data
-const mockGoodsReceipts: GoodsReceipt[] = [
-  {
-    id: 1,
-    receipt_number: 'GR001234',
-    receipt_date: '2024-01-15',
-    supplier_id: 1,
-    supplier_code: 'SUPP001',
-    supplier_name: 'ABC Supplies Ltd',
-    order_number: 'PO001234',
-    delivery_note: 'DEL-2024-001',
-    receipt_status: 'RECEIVED',
-    total_quantity: 100,
-    total_value: 2500.00,
-    goods_received: 100,
-    outstanding_quantity: 0,
-    is_complete: true,
-    gl_posted: true,
-    received_by: 'John Smith',
-    notes: 'All items received in good condition',
-  },
-  {
-    id: 2,
-    receipt_number: 'GR001235',
-    receipt_date: '2024-01-16',
-    supplier_id: 2,
-    supplier_code: 'SUPP002',
-    supplier_name: 'Tech Components Inc',
-    order_number: 'PO001235',
-    delivery_note: 'DEL-2024-002',
-    receipt_status: 'PARTIAL',
-    total_quantity: 50,
-    total_value: 1200.00,
-    goods_received: 40,
-    outstanding_quantity: 10,
-    is_complete: false,
-    gl_posted: false,
-    received_by: 'Jane Doe',
-    notes: 'Partial delivery - remaining items expected next week',
-  },
-  {
-    id: 3,
-    receipt_number: 'GR001236',
-    receipt_date: '2024-01-17',
-    supplier_id: 3,
-    supplier_code: 'SUPP003',
-    supplier_name: 'Office Supplies Co',
-    order_number: 'PO001236',
-    receipt_status: 'PENDING',
-    total_quantity: 25,
-    total_value: 750.00,
-    goods_received: 0,
-    outstanding_quantity: 25,
-    is_complete: false,
-    gl_posted: false,
-    received_by: 'Bob Johnson',
-    notes: 'Awaiting delivery',
-  },
-]
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -134,9 +56,10 @@ export default function GoodsReceiptsPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState<GoodsReceipt | null>(null)
 
-  const { data: goodsReceipts, isLoading } = useQuery({
+  const { data: goodsReceipts, isLoading, error, refetch } = useQuery({
     queryKey: ['goods-receipts'],
-    queryFn: () => Promise.resolve(mockGoodsReceipts),
+    queryFn: () => goodsReceiptsApi.getAll(),
+    refetchInterval: 30000, // Refresh every 30 seconds
   })
 
   const columns: ColumnDef<GoodsReceipt>[] = [
@@ -391,7 +314,27 @@ export default function GoodsReceiptsPage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading goods receipts...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load goods receipts</p>
+          <Button onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (

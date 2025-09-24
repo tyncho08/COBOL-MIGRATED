@@ -68,12 +68,15 @@ const stockAdjustmentSchema = z.object({
 })
 
 const getStockStatusBadge = (item: StockItem) => {
-  const available = item.quantity_on_hand - (item.quantity_allocated || 0)
+  const onHand = item.quantity_on_hand ?? 0
+  const allocated = item.quantity_allocated ?? 0
+  const reorderLevel = item.reorder_level ?? 0
+  const available = onHand - allocated
   
-  if (item.quantity_on_hand === 0) {
+  if (onHand === 0) {
     return <Badge variant="danger">Out of Stock</Badge>
   }
-  if (item.quantity_on_hand < item.reorder_level) {
+  if (reorderLevel > 0 && onHand < reorderLevel) {
     return <Badge variant="warning">Low Stock</Badge>
   }
   if (available <= 0) {
@@ -209,9 +212,10 @@ export default function StockItemsPage() {
       header: 'On Hand',
       cell: ({ row }) => {
         const qty = row.getValue('quantity_on_hand') as number
+        const quantity = qty ?? 0
         return (
-          <span className={qty <= 0 ? 'text-red-600 font-bold' : ''}>
-            {qty.toFixed(2)}
+          <span className={quantity <= 0 ? 'text-red-600 font-bold' : ''}>
+            {quantity.toFixed(2)}
           </span>
         )
       },
@@ -220,8 +224,9 @@ export default function StockItemsPage() {
       accessorKey: 'quantity_allocated',
       header: 'Allocated',
       cell: ({ row }) => {
-        const qty = row.getValue('quantity_allocated') as number || 0
-        return qty > 0 ? qty.toFixed(2) : '-'
+        const qty = row.getValue('quantity_allocated') as number
+        const quantity = qty ?? 0
+        return quantity > 0 ? quantity.toFixed(2) : '-'
       },
     },
     {
@@ -229,7 +234,9 @@ export default function StockItemsPage() {
       header: 'Available',
       cell: ({ row }) => {
         const item = row.original
-        const available = item.quantity_on_hand - (item.quantity_allocated || 0)
+        const onHand = item.quantity_on_hand ?? 0
+        const allocated = item.quantity_allocated ?? 0
+        const available = onHand - allocated
         return (
           <span className={available <= 0 ? 'text-red-600 font-bold' : 'text-green-600'}>
             {available.toFixed(2)}
@@ -242,7 +249,8 @@ export default function StockItemsPage() {
       header: 'Reorder Level',
       cell: ({ row }) => {
         const level = row.getValue('reorder_level') as number
-        return level > 0 ? level.toFixed(2) : '-'
+        const reorderLevel = level ?? 0
+        return reorderLevel > 0 ? reorderLevel.toFixed(2) : '-'
       },
     },
     {

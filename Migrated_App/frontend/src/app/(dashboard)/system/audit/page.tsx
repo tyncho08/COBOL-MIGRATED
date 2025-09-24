@@ -22,6 +22,8 @@ import {
   InformationCircleIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { systemApi } from '@/lib/api/system'
+import toast from 'react-hot-toast'
 
 // Types
 interface AuditTrail {
@@ -57,140 +59,6 @@ const auditSearchSchema = z.object({
   result: z.string().optional(),
 })
 
-// Mock data
-const mockAuditTrail: AuditTrail[] = [
-  {
-    id: 1,
-    timestamp: '2024-01-15T14:30:25.123Z',
-    user_id: 'jsmith',
-    user_name: 'John Smith',
-    session_id: 'SES20240115143025001',
-    action_type: 'CREATE',
-    module: 'CUSTOMERS',
-    table_name: 'customers',
-    record_id: 'CUST001',
-    action_description: 'Created new customer record',
-    new_values: '{"customer_code":"CUST001","customer_name":"ABC Corp","city":"New York"}',
-    ip_address: '192.168.1.100',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'SUCCESS',
-    severity: 'INFO',
-    transaction_id: 'TXN20240115143025001',
-  },
-  {
-    id: 2,
-    timestamp: '2024-01-15T14:35:18.456Z',
-    user_id: 'jsmith',
-    user_name: 'John Smith',
-    session_id: 'SES20240115143025001',
-    action_type: 'UPDATE',
-    module: 'CUSTOMERS',
-    table_name: 'customers',
-    record_id: 'CUST001',
-    action_description: 'Updated customer credit limit',
-    old_values: '{"credit_limit":50000.00}',
-    new_values: '{"credit_limit":75000.00}',
-    ip_address: '192.168.1.100',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'SUCCESS',
-    severity: 'INFO',
-    transaction_id: 'TXN20240115143518001',
-  },
-  {
-    id: 3,
-    timestamp: '2024-01-15T15:00:42.789Z',
-    user_id: 'admin',
-    user_name: 'System Administrator',
-    session_id: 'SES20240115150042001',
-    action_type: 'LOGIN',
-    module: 'AUTHENTICATION',
-    action_description: 'User login attempt',
-    ip_address: '192.168.1.50',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'FAILURE',
-    error_message: 'Invalid password',
-    severity: 'WARNING',
-  },
-  {
-    id: 4,
-    timestamp: '2024-01-15T15:01:15.234Z',
-    user_id: 'admin',
-    user_name: 'System Administrator',
-    session_id: 'SES20240115150115001',
-    action_type: 'LOGIN',
-    module: 'AUTHENTICATION',
-    action_description: 'User login successful',
-    ip_address: '192.168.1.50',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'SUCCESS',
-    severity: 'INFO',
-  },
-  {
-    id: 5,
-    timestamp: '2024-01-15T15:30:55.567Z',
-    user_id: 'admin',
-    user_name: 'System Administrator',
-    session_id: 'SES20240115150115001',
-    action_type: 'DELETE',
-    module: 'USERS',
-    table_name: 'users',
-    record_id: 'temp_user',
-    action_description: 'Deleted temporary user account',
-    old_values: '{"user_id":"temp_user","user_name":"Temporary User","is_active":false}',
-    ip_address: '192.168.1.50',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'SUCCESS',
-    severity: 'WARNING',
-    transaction_id: 'TXN20240115153055001',
-  },
-  {
-    id: 6,
-    timestamp: '2024-01-15T16:15:33.890Z',
-    user_id: 'jdoe',
-    user_name: 'Jane Doe',
-    session_id: 'SES20240115161533001',
-    action_type: 'EXPORT',
-    module: 'REPORTS',
-    action_description: 'Exported customer list report',
-    ip_address: '192.168.1.75',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'SUCCESS',
-    severity: 'INFO',
-    reference_number: 'RPT20240115161533001',
-  },
-  {
-    id: 7,
-    timestamp: '2024-01-15T16:45:12.123Z',
-    user_id: 'bjohnson',
-    user_name: 'Bob Johnson',
-    session_id: 'SES20240115164512001',
-    action_type: 'POST',
-    module: 'GL',
-    table_name: 'journal_entries',
-    record_id: 'JE001234',
-    action_description: 'Posted journal entry batch',
-    new_values: '{"batch_number":"GL001234","total_debits":15000.00,"total_credits":15000.00}',
-    ip_address: '192.168.1.120',
-    user_agent: 'Mozilla/5.0 Chrome/120.0.0.0',
-    result: 'SUCCESS',
-    severity: 'INFO',
-    transaction_id: 'TXN20240115164512001',
-  },
-  {
-    id: 8,
-    timestamp: '2024-01-15T17:00:00.000Z',
-    user_id: 'system',
-    user_name: 'System Process',
-    session_id: 'SYS20240115170000001',
-    action_type: 'BACKUP',
-    module: 'SYSTEM',
-    action_description: 'Automated database backup',
-    ip_address: '127.0.0.1',
-    result: 'FAILURE',
-    error_message: 'Backup destination disk full',
-    severity: 'ERROR',
-  },
-]
 
 const getActionTypeBadge = (actionType: string) => {
   switch (actionType) {
@@ -247,10 +115,12 @@ export default function AuditTrailPage() {
   const [showSearchModal, setShowSearchModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedEntry, setSelectedEntry] = useState<AuditTrail | null>(null)
+  const [searchParams, setSearchParams] = useState<any>({})
 
-  const { data: auditTrail, isLoading } = useQuery({
-    queryKey: ['audit-trail'],
-    queryFn: () => Promise.resolve(mockAuditTrail),
+  const { data: auditTrail, isLoading, error, refetch } = useQuery({
+    queryKey: ['audit-trail', searchParams],
+    queryFn: () => systemApi.audit.getAll(searchParams),
+    staleTime: 30000, // 30 seconds
   })
 
   const columns: ColumnDef<AuditTrail>[] = [
@@ -463,12 +333,44 @@ export default function AuditTrailPage() {
   ]
 
   const handleSearch = (data: any) => {
-    console.log('Searching audit trail:', data)
+    // Convert form data to API parameters
+    const params: any = {}
+    
+    if (data.date_from) params.date_from = data.date_from
+    if (data.date_to) params.date_to = data.date_to
+    if (data.user_id) params.user = data.user_id
+    if (data.module) params.module = data.module
+    if (data.action_type) params.event_type = data.action_type
+    if (data.severity) params.severity = data.severity
+    if (data.result) params.result = data.result
+    
+    setSearchParams(params)
     setShowSearchModal(false)
+    toast.success('Search filters applied')
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading audit trail...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load audit trail</p>
+          <Button onClick={() => refetch()}>
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -493,22 +395,10 @@ export default function AuditTrailPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/system/audit/export', {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
-                  const blob = await response.blob()
-                  const url = window.URL.createObjectURL(blob)
-                  const link = document.createElement('a')
-                  link.href = url
-                  link.download = `audit-log-${new Date().toISOString().split('T')[0]}.csv`
-                  document.body.appendChild(link)
-                  link.click()
-                  document.body.removeChild(link)
-                  window.URL.revokeObjectURL(url)
+                  await systemApi.audit.export('csv', searchParams)
+                  toast.success('Audit log exported successfully')
                 } catch (error) {
-                  alert('Failed to export audit log')
+                  toast.error('Failed to export audit log')
                 }
               }}
             >

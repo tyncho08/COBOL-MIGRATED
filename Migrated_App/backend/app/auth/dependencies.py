@@ -6,15 +6,16 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from datetime import datetime
 import logging
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 # Security scheme
 security = HTTPBearer()
 
-# JWT settings (should match main.py)
-SECRET_KEY = "acas-secret-key-change-in-production"
-ALGORITHM = "HS256"
+# JWT settings from app configuration
+SECRET_KEY = settings.SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """

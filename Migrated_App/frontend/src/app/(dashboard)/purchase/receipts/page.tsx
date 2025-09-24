@@ -196,7 +196,7 @@ export default function GoodsReceiptsPage() {
                       <strong>Supplier:</strong> ${receipt.supplier_code} - ${receipt.supplier_name}<br>
                       <strong>Delivery Note:</strong> ${receipt.delivery_note || 'N/A'}<br>
                       <strong>Total Items:</strong> ${receipt.receipt_lines?.length || 0}<br>
-                      <strong>Total Amount:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(receipt.total_amount)}<br>
+                      <strong>Total Amount:</strong> ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(receipt.total_value)}<br>
                       <strong>Status:</strong> ${receipt.receipt_status}${receipt.gl_posted ? ' (Posted to GL)' : ''}
                     </div>
                     <button style="background:#3b82f6;color:white;padding:0.5rem 1rem;border:none;border-radius:4px;cursor:pointer" onclick="this.parentElement.parentElement.remove()">Close</button>
@@ -368,7 +368,7 @@ export default function GoodsReceiptsPage() {
                           <table border="1" style="border-collapse:collapse">
                             <tr><th>Date</th><th>Receipt #</th><th>Supplier</th><th>PO #</th><th>Total</th><th>Status</th></tr>
                             ${data.receipts?.map((r: any) => 
-                              `<tr><td>${new Date(r.receipt_date).toLocaleDateString()}</td><td>${r.receipt_number}</td><td>${r.supplier_code}</td><td>${r.order_number}</td><td>$${r.total_amount.toFixed(2)}</td><td>${r.status}</td></tr>`
+                              `<tr><td>${new Date(r.receipt_date).toLocaleDateString()}</td><td>${r.receipt_number}</td><td>${r.supplier_code}</td><td>${r.order_number}</td><td>$${r.total_value.toFixed(2)}</td><td>${r.status}</td></tr>`
                             ).join('')}
                           </table>
                           <p>Generated: ${new Date().toLocaleString()}</p>

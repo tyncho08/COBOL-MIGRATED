@@ -192,15 +192,15 @@ export default function StockTakesPage() {
       header: 'Total Items',
       cell: ({ row }) => {
         const total = row.getValue('total_items') as number
-        return total.toLocaleString()
+        return (total || 0).toLocaleString()
       },
     },
     {
       accessorKey: 'items_counted',
       header: 'Counted',
       cell: ({ row }) => {
-        const counted = row.getValue('items_counted') as number
-        const total = row.original.total_items
+        const counted = row.getValue('items_counted') as number || 0
+        const total = row.original.total_items || 0
         const percentage = total > 0 ? (counted / total * 100).toFixed(1) : '0.0'
         return (
           <span className={counted < total ? 'text-orange-600' : 'text-green-600'}>
@@ -213,7 +213,7 @@ export default function StockTakesPage() {
       accessorKey: 'items_pending',
       header: 'Pending',
       cell: ({ row }) => {
-        const pending = row.getValue('items_pending') as number
+        const pending = row.getValue('items_pending') as number || 0
         return (
           <span className={pending > 0 ? 'text-red-600 font-semibold' : ''}>
             {pending.toLocaleString()}

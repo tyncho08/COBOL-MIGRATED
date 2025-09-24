@@ -278,7 +278,7 @@ export default function SalesInvoicesPage() {
                     <form id="emailForm">
                       <div style="margin-bottom:1rem">
                         <label style="display:block;margin-bottom:0.25rem">To:</label>
-                        <input type="email" name="to" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="${invoice.customer_email || ''}" required>
+                        <input type="email" name="to" style="width:100%;padding:0.5rem;border:1px solid #ccc;border-radius:4px" value="" required>
                       </div>
                       <div style="margin-bottom:1rem">
                         <label style="display:block;margin-bottom:0.25rem">Subject:</label>

@@ -58,107 +58,7 @@ const batchSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockGLBatches: GLBatch[] = [
-  {
-    id: 1,
-    batch_number: 'GL001234',
-    batch_type: 'JOURNAL',
-    batch_date: '2024-01-15',
-    description: 'Monthly depreciation entries',
-    source_module: 'GL',
-    total_debits: 15000.00,
-    total_credits: 15000.00,
-    entry_count: 25,
-    is_balanced: true,
-    batch_status: 'POSTED',
-    created_by: 'John Smith',
-    created_date: '2024-01-15T09:00:00Z',
-    approved_by: 'Manager',
-    approved_date: '2024-01-15T14:30:00Z',
-    posted_by: 'System',
-    posted_date: '2024-01-15T15:00:00Z',
-    period_number: 1,
-    year_number: 2024,
-    notes: 'Automated depreciation calculation',
-  },
-  {
-    id: 2,
-    batch_number: 'GL001235',
-    batch_type: 'ACCRUAL',
-    batch_date: '2024-01-16',
-    description: 'Month-end accruals',
-    source_module: 'GL',
-    total_debits: 8500.00,
-    total_credits: 8500.00,
-    entry_count: 15,
-    is_balanced: true,
-    batch_status: 'APPROVED',
-    created_by: 'Jane Doe',
-    created_date: '2024-01-16T10:30:00Z',
-    approved_by: 'Manager',
-    approved_date: '2024-01-16T16:00:00Z',
-    period_number: 1,
-    year_number: 2024,
-    notes: 'January accruals per management instructions',
-  },
-  {
-    id: 3,
-    batch_number: 'GL001236',
-    batch_type: 'CORRECTION',
-    batch_date: '2024-01-17',
-    description: 'Correction of posting errors',
-    source_module: 'GL',
-    total_debits: 2500.00,
-    total_credits: 2300.00,
-    entry_count: 8,
-    is_balanced: false,
-    batch_status: 'PENDING',
-    created_by: 'Bob Johnson',
-    created_date: '2024-01-17T11:15:00Z',
-    period_number: 1,
-    year_number: 2024,
-    notes: 'Needs review - out of balance',
-  },
-  {
-    id: 4,
-    batch_number: 'AP001100',
-    batch_type: 'INVOICE',
-    batch_date: '2024-01-18',
-    description: 'Supplier invoice batch',
-    source_module: 'AP',
-    total_debits: 12500.00,
-    total_credits: 12500.00,
-    entry_count: 35,
-    is_balanced: true,
-    batch_status: 'REJECTED',
-    created_by: 'Alice Wilson',
-    created_date: '2024-01-18T08:45:00Z',
-    rejected_by: 'Supervisor',
-    rejected_date: '2024-01-18T14:20:00Z',
-    rejection_reason: 'Missing supporting documentation',
-    period_number: 1,
-    year_number: 2024,
-  },
-  {
-    id: 5,
-    batch_number: 'AR001050',
-    batch_type: 'INVOICE',
-    batch_date: '2024-01-19',
-    description: 'Customer invoice batch',
-    source_module: 'AR',
-    total_debits: 18750.00,
-    total_credits: 18750.00,
-    entry_count: 42,
-    is_balanced: true,
-    batch_status: 'PENDING',
-    created_by: 'Charlie Brown',
-    created_date: '2024-01-19T13:00:00Z',
-    period_number: 1,
-    year_number: 2024,
-    notes: 'Ready for approval',
-  },
-]
+// Data comes from API now - no more mock data needed
 
 const getBatchTypeBadge = (type: string) => {
   switch (type) {
@@ -218,7 +118,7 @@ export default function GLBatchesPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedBatch, setSelectedBatch] = useState<GLBatch | null>(null)
 
-  const { data: glBatches, isLoading } = useQuery({
+  const { data: glBatches, isLoading, error } = useQuery({
     queryKey: ['gl-batches'],
     queryFn: async () => {
       const response = await apiRequest('/api/v1/general/batches')
@@ -226,6 +126,7 @@ export default function GLBatchesPage() {
         throw new Error(`Failed to fetch GL batches: ${response.statusText}`)
       }
       const result = await response.json()
+      console.log('GL Batches API Response:', result) // Debug log
       return result.data || []
     }
   })
@@ -270,10 +171,10 @@ export default function GLBatchesPage() {
       },
     },
     {
-      accessorKey: 'entry_count',
+      accessorKey: 'entries_count',
       header: 'Entries',
       cell: ({ row }) => {
-        const count = row.getValue('entry_count') as number
+        const count = row.getValue('entries_count') as number
         return count.toLocaleString()
       },
     },
@@ -312,19 +213,17 @@ export default function GLBatchesPage() {
       },
     },
     {
-      accessorKey: 'batch_status',
+      accessorKey: 'status',
       header: 'Status',
       cell: ({ row }) => {
-        return getStatusBadge(row.getValue('batch_status'))
+        return getStatusBadge(row.getValue('status'))
       },
     },
     {
-      accessorKey: 'period_number',
-      header: 'Period',
+      accessorKey: 'source_module',
+      header: 'Module',
       cell: ({ row }) => {
-        const period = row.getValue('period_number') as number
-        const year = row.original.year_number
-        return `${period}/${year}`
+        return getSourceModuleBadge(row.getValue('source_module'))
       },
     },
     {
@@ -332,10 +231,10 @@ export default function GLBatchesPage() {
       header: 'Created By',
     },
     {
-      accessorKey: 'created_date',
-      header: 'Created Date',
+      accessorKey: 'batch_date',
+      header: 'Batch Date',
       cell: ({ row }) => {
-        const date = row.getValue('created_date') as string
+        const date = row.getValue('batch_date') as string
         return new Date(date).toLocaleDateString()
       },
     },
@@ -353,7 +252,7 @@ export default function GLBatchesPage() {
                 setSelectedBatch(batch)
                 setShowEditModal(true)
               }}
-              disabled={batch.batch_status === 'POSTED'}
+              disabled={batch.status === 'POSTED'}
             >
               <PencilIcon className="h-4 w-4" />
             </Button>
@@ -375,7 +274,7 @@ export default function GLBatchesPage() {
             >
               <PrinterIcon className="h-4 w-4" />
             </Button>
-            {batch.batch_status === 'PENDING' && batch.is_balanced && (
+            {batch.status === 'PENDING' && batch.is_balanced && (
               <Button
                 size="sm"
                 variant="outline"
@@ -386,7 +285,7 @@ export default function GLBatchesPage() {
                 <DocumentCheckIcon className="h-4 w-4" />
               </Button>
             )}
-            {batch.batch_status === 'APPROVED' && (
+            {batch.status === 'BALANCED' && (
               <Button
                 size="sm"
                 variant="outline"
@@ -397,7 +296,7 @@ export default function GLBatchesPage() {
                 <ArrowPathIcon className="h-4 w-4" />
               </Button>
             )}
-            {(batch.batch_status === 'PENDING' || batch.batch_status === 'APPROVED') && (
+            {(batch.status === 'PENDING' || batch.status === 'BALANCED') && (
               <Button
                 size="sm"
                 variant="outline"
@@ -465,7 +364,31 @@ export default function GLBatchesPage() {
   }
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-600">Loading GL batches...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">Failed to load GL batches</p>
+          <p className="text-sm text-gray-500 mb-4">{error.message}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

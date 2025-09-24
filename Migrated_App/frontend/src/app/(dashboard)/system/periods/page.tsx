@@ -180,7 +180,7 @@ export default function PeriodsPage() {
       accessorKey: 'transaction_count',
       header: 'Transactions',
       cell: ({ row }) => {
-        const count = row.getValue('transaction_count') as number
+        const count = row.getValue('transaction_count') as number || 0
         return count.toLocaleString()
       },
     },
@@ -188,7 +188,7 @@ export default function PeriodsPage() {
       accessorKey: 'total_debits',
       header: 'Total Debits',
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('total_debits'))
+        const amount = parseFloat(row.getValue('total_debits')) || 0
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: 'USD',
@@ -199,7 +199,7 @@ export default function PeriodsPage() {
       accessorKey: 'total_credits',
       header: 'Total Credits',
       cell: ({ row }) => {
-        const amount = parseFloat(row.getValue('total_credits'))
+        const amount = parseFloat(row.getValue('total_credits')) || 0
         return new Intl.NumberFormat('en-US', {
           style: 'currency',
           currency: 'USD',
@@ -228,19 +228,19 @@ export default function PeriodsPage() {
           <div className="grid grid-cols-2 gap-1">
             <div className="flex items-center space-x-1">
               <span className="text-xs">GL:</span>
-              {getModuleStatusBadge(period.module_status.gl)}
+              {getModuleStatusBadge(period.gl_closed ? 'CLOSED' : 'OPEN')}
             </div>
             <div className="flex items-center space-x-1">
               <span className="text-xs">AR:</span>
-              {getModuleStatusBadge(period.module_status.ar)}
+              {getModuleStatusBadge(period.sl_closed ? 'CLOSED' : 'OPEN')}
             </div>
             <div className="flex items-center space-x-1">
               <span className="text-xs">AP:</span>
-              {getModuleStatusBadge(period.module_status.ap)}
+              {getModuleStatusBadge(period.pl_closed ? 'CLOSED' : 'OPEN')}
             </div>
             <div className="flex items-center space-x-1">
               <span className="text-xs">INV:</span>
-              {getModuleStatusBadge(period.module_status.inv)}
+              {getModuleStatusBadge(period.stock_closed ? 'CLOSED' : 'OPEN')}
             </div>
           </div>
         )

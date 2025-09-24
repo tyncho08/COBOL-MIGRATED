@@ -386,7 +386,7 @@ def get_stock_items(current_user: dict = Depends(require_read), db: Session = De
             items = db.execute(text("""
                 SELECT 
                     id,
-                    stock_code,
+                    stock_no as stock_code,
                     description,
                     category,
                     unit_of_measure,
@@ -399,7 +399,7 @@ def get_stock_items(current_user: dict = Depends(require_read), db: Session = De
                     COALESCE(selling_price, 0) as selling_price,
                     vat_code,
                     bin_location,
-                    supplier_code,
+                    supplier_no as supplier_code,
                     barcode,
                     is_active,
                     is_service_item,

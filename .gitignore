@@ -20,6 +20,7 @@ Thumbs.db
 Migrated_App/logs/
 Migrated_App/backend.log
 Migrated_App/frontend.log
+main_simple.py
 
 # Node.js
 Migrated_App/frontend/node_modules/
@@ -55,6 +56,8 @@ wheels/
 venv/
 ENV/
 env/
+Migrated_App/backend/venv/
+backend/venv/
 Migrated_App/backend/.env
 
 # Database

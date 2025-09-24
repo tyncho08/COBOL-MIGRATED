@@ -28,9 +28,25 @@ export const setAccessToken = (token: string | null) => {
 
 export const getAccessToken = () => accessToken
 
+// Initialize token from localStorage on load
+if (typeof window !== 'undefined') {
+  const storedToken = localStorage.getItem('token')
+  if (storedToken) {
+    setAccessToken(storedToken)
+  }
+}
+
 // Request interceptor
 apiClient.interceptors.request.use(
   (config) => {
+    // Get token from localStorage for each request
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token')
+      if (token) {
+        config.headers['Authorization'] = `Bearer ${token}`
+      }
+    }
+    
     // Add timestamp to prevent caching
     config.params = {
       ...config.params,

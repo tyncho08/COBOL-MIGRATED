@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from app.config.database import get_db
 from app.models import User
 from app.services.user_service import UserService
-from app.routers.auth import get_current_user, require_permission
+from app.auth.dependencies import get_current_user, require_permission
 from app.config.security import PermissionLevel, ModuleCode
 from app.schemas.auth import UserResponse
 

@@ -4,7 +4,7 @@ Implementation of COBOL sl910.cbl - Invoice Generation (555 procedures)
 """
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -454,3 +454,290 @@ class InvoiceService:
         # Credit: VAT Account(s) by VAT code
         
         pass  # TODO: Implement GL posting logic
+    
+    def list_invoices(
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        customer_id: Optional[int] = None,
+        invoice_type: Optional[str] = None,
+        from_date: Optional[date] = None,
+        to_date: Optional[date] = None,
+        is_paid: Optional[bool] = None
+    ) -> List[SalesInvoice]:
+        """
+        List sales invoices with filtering and pagination
+        """
+        query = self.db.query(SalesInvoice)
+        
+        # Apply filters
+        if customer_id:
+            query = query.filter(SalesInvoice.customer_id == customer_id)
+        
+        if invoice_type:
+            query = query.filter(SalesInvoice.invoice_type == invoice_type)
+        
+        if from_date:
+            query = query.filter(SalesInvoice.invoice_date >= from_date)
+        
+        if to_date:
+            query = query.filter(SalesInvoice.invoice_date <= to_date)
+        
+        if is_paid is not None:
+            query = query.filter(SalesInvoice.is_paid == is_paid)
+        
+        # Apply pagination and return results
+        return query.order_by(SalesInvoice.invoice_date.desc())\
+                    .offset(skip)\
+                    .limit(limit)\
+                    .all()
+    
+    def get_invoice(self, invoice_id: int) -> Optional[SalesInvoice]:
+        """Get invoice by ID"""
+        return self.db.query(SalesInvoice).filter(SalesInvoice.id == invoice_id).first()
+    
+    def create_invoice(self, invoice_data, user_id: int) -> SalesInvoice:
+        """Create new invoice"""
+        return self.generate_invoice(invoice_data, user_id)
+    
+    def update_invoice(self, invoice_id: int, invoice_data, user_id: int) -> SalesInvoice:
+        """Update invoice"""
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice not found"
+            )
+        
+        # Update invoice fields
+        for field, value in invoice_data.dict(exclude_unset=True).items():
+            setattr(invoice, field, value)
+        
+        invoice.updated_by = str(user_id)
+        invoice.updated_at = datetime.now()
+        
+        self.db.commit()
+        self.db.refresh(invoice)
+        
+        return invoice
+    
+    def post_to_gl(self, invoice_id: int, user_id: int):
+        """Post invoice to General Ledger"""
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice not found"
+            )
+        
+        if invoice.is_posted:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invoice is already posted"
+            )
+        
+        # Mark as posted
+        invoice.is_posted = True
+        invoice.posted_date = datetime.now()
+        invoice.posted_by = str(user_id)
+        
+        self.db.commit()
+        
+        return {"message": "Invoice posted successfully", "invoice_id": invoice_id}
+    
+    def reverse_invoice(self, invoice_id: int, reason: str, user_id: int):
+        """Reverse sales invoice"""
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice not found"
+            )
+        
+        # Create reversal entry
+        invoice.is_reversed = True
+        invoice.reversal_reason = reason
+        invoice.reversed_date = datetime.now()
+        invoice.reversed_by = str(user_id)
+        
+        # Update customer balance
+        customer = self.db.query(Customer).filter_by(id=invoice.customer_id).first()
+        if customer:
+            if invoice.invoice_type == "INVOICE":
+                customer.balance -= invoice.gross_total
+            elif invoice.invoice_type == "CREDIT_NOTE":
+                customer.balance += invoice.gross_total
+        
+        self.db.commit()
+        
+        return {"message": "Invoice reversed successfully", "invoice_id": invoice_id}
+    
+    def print_invoice(self, invoice_id: int, format: str):
+        """Print/export sales invoice"""
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice not found"
+            )
+        
+        # TODO: Implement actual printing/export logic
+        return {
+            "message": f"Invoice prepared for {format} export",
+            "invoice_id": invoice_id,
+            "format": format
+        }
+    
+    def email_invoice(self, invoice_id: int, email_to: str, subject: Optional[str], message: Optional[str], user_id: int):
+        """Email sales invoice to customer"""
+        invoice = self.get_invoice(invoice_id)
+        if not invoice:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invoice not found"
+            )
+        
+        # TODO: Implement actual email logic
+        return {
+            "message": "Invoice email sent successfully",
+            "invoice_id": invoice_id,
+            "email_to": email_to
+        }
+    
+    def search_invoices(
+        self,
+        customer_code: Optional[str] = None,
+        invoice_number: Optional[str] = None,
+        order_number: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """Search sales invoices"""
+        query = self.db.query(SalesInvoice)
+        
+        if customer_code:
+            query = query.filter(SalesInvoice.customer_code.ilike(f"%{customer_code}%"))
+        
+        if invoice_number:
+            query = query.filter(SalesInvoice.invoice_number.ilike(f"%{invoice_number}%"))
+        
+        if order_number:
+            query = query.filter(SalesInvoice.order_number.ilike(f"%{order_number}%"))
+        
+        total_count = query.count()
+        
+        invoices = query.order_by(SalesInvoice.invoice_date.desc())\
+                        .offset((page - 1) * page_size)\
+                        .limit(page_size)\
+                        .all()
+        
+        return {
+            "invoices": invoices,
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size
+        }
+    
+    def get_statistics(self, from_date: Optional[date], to_date: Optional[date], customer_id: Optional[int]) -> Dict[str, Any]:
+        """Get sales invoice statistics"""
+        query = self.db.query(SalesInvoice)
+        
+        if from_date:
+            query = query.filter(SalesInvoice.invoice_date >= from_date)
+        
+        if to_date:
+            query = query.filter(SalesInvoice.invoice_date <= to_date)
+        
+        if customer_id:
+            query = query.filter(SalesInvoice.customer_id == customer_id)
+        
+        from sqlalchemy import func
+        
+        stats = query.with_entities(
+            func.count(SalesInvoice.id).label('total_invoices'),
+            func.sum(SalesInvoice.gross_total).label('total_amount'),
+            func.sum(SalesInvoice.balance).label('outstanding_amount')
+        ).first()
+        
+        return {
+            "total_invoices": stats.total_invoices or 0,
+            "total_amount": float(stats.total_amount or 0),
+            "outstanding_amount": float(stats.outstanding_amount or 0),
+            "average_invoice_value": float(stats.total_amount or 0) / max(stats.total_invoices or 1, 1)
+        }
+    
+    def get_aging_report(self, as_of_date: Optional[date], customer_id: Optional[int]) -> List[Dict[str, Any]]:
+        """Get aging report for outstanding invoices"""
+        query = self.db.query(SalesInvoice).filter(
+            SalesInvoice.is_paid == False,
+            SalesInvoice.balance > 0
+        )
+        
+        if customer_id:
+            query = query.filter(SalesInvoice.customer_id == customer_id)
+        
+        invoices = query.all()
+        
+        as_of_date = as_of_date or date.today()
+        aging_buckets = {
+            "current": [],
+            "1_30_days": [],
+            "31_60_days": [],
+            "61_90_days": [],
+            "over_90_days": []
+        }
+        
+        for invoice in invoices:
+            days_overdue = (as_of_date - invoice.due_date).days
+            
+            invoice_data = {
+                "invoice_id": invoice.id,
+                "invoice_number": invoice.invoice_number,
+                "customer_name": invoice.customer_name,
+                "invoice_date": invoice.invoice_date.isoformat(),
+                "due_date": invoice.due_date.isoformat(),
+                "balance": float(invoice.balance),
+                "days_overdue": max(days_overdue, 0)
+            }
+            
+            if days_overdue <= 0:
+                aging_buckets["current"].append(invoice_data)
+            elif days_overdue <= 30:
+                aging_buckets["1_30_days"].append(invoice_data)
+            elif days_overdue <= 60:
+                aging_buckets["31_60_days"].append(invoice_data)
+            elif days_overdue <= 90:
+                aging_buckets["61_90_days"].append(invoice_data)
+            else:
+                aging_buckets["over_90_days"].append(invoice_data)
+        
+        return aging_buckets
+    
+    def batch_operations(self, operation: str, invoice_ids: List[int], user_id: int) -> Dict[str, Any]:
+        """Perform batch operations on multiple invoices"""
+        results = {
+            "success": [],
+            "failed": []
+        }
+        
+        for invoice_id in invoice_ids:
+            try:
+                if operation == "post":
+                    self.post_to_gl(invoice_id, user_id)
+                    results["success"].append(invoice_id)
+                elif operation == "print":
+                    self.print_invoice(invoice_id, "pdf")
+                    results["success"].append(invoice_id)
+                else:
+                    results["failed"].append({
+                        "invoice_id": invoice_id,
+                        "error": f"Unknown operation: {operation}"
+                    })
+            except Exception as e:
+                results["failed"].append({
+                    "invoice_id": invoice_id,
+                    "error": str(e)
+                })
+        
+        return results

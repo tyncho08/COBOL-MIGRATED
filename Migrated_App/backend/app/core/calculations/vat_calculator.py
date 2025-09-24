@@ -35,12 +35,12 @@ class VATCalculator:
     }
     
     # Historical VAT rates for back-dated transactions
-    HISTORICAL_RATES = {
+    HISTORICAL_RATES = [
         # Format: (effective_date, {code: rate})
         (date(2011, 1, 4), {VATCode.STANDARD: Decimal("20.00")}),
         (date(2010, 1, 1), {VATCode.STANDARD: Decimal("17.50")}),
         (date(2008, 12, 1), {VATCode.STANDARD: Decimal("15.00")}),
-    }
+    ]
     
     @classmethod
     def calculate_vat(

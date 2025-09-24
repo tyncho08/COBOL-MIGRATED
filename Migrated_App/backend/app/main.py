@@ -16,6 +16,7 @@ import io
 import json
 from app.auth.dependencies import get_current_user, require_read, require_admin
 from app.config.settings import settings
+# from app.api.v1.router import api_router  # Temporarily disabled due to conflicts
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +36,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include the API v1 router
+# app.include_router(api_router)  # Temporarily disabled due to conflicts
 
 # Database setup
 engine = create_engine(settings.database_url)
@@ -618,6 +622,12 @@ def get_dashboard_statistics(current_user: dict = Depends(require_read), db: Ses
     from app.dashboard_stats import get_dashboard_statistics as get_stats
     return get_stats(db)
 
+# Add route for frontend expected path
+@app.get("/api/v1/sales-invoices")
+def get_sales_invoices_api(current_user: dict = Depends(require_read), db: Session = Depends(get_db)):
+    """Get sales invoices (API v1 compatible route)"""
+    return get_sales_invoices(current_user, db)
+
 @app.get("/api/v1/sales/invoices")
 def get_sales_invoices(current_user: dict = Depends(require_read), db: Session = Depends(get_db)):
     """Get sales invoices from database"""
@@ -663,6 +673,12 @@ def get_sales_invoices(current_user: dict = Depends(require_read), db: Session =
     except Exception as e:
         logger.error(f"Error fetching sales invoices: {e}")
         return create_response([], f"Error fetching sales invoices: {str(e)}", success=False)
+
+# Add route for frontend expected path
+@app.get("/api/v1/customer-payments")
+def get_customer_payments_api(current_user: dict = Depends(require_read), db: Session = Depends(get_db)):
+    """Get customer payments (API v1 compatible route)"""
+    return get_sales_payments(current_user, db)
 
 @app.get("/api/v1/sales/payments")
 def get_sales_payments(current_user: dict = Depends(require_read), db: Session = Depends(get_db)):

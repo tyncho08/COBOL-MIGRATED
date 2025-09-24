@@ -63,7 +63,7 @@ def get_periods(
         query = query.filter(and_(*filters))
     
     periods = query.order_by(CompanyPeriod.year_number.desc(), CompanyPeriod.period_number).all()
-    return {"periods": periods}
+    return periods  # Return array directly, not wrapped in object
 
 
 @router.post("/periods", response_model=PeriodResponse)
@@ -267,6 +267,21 @@ def create_number_sequence(
     db.refresh(sequence)
     
     return {"message": "Number sequence created", "sequence": sequence}
+
+
+@router.get("/audit")
+def get_audit(
+    table_name: Optional[str] = Query(None),
+    operation: Optional[str] = Query(None),
+    user_id: Optional[int] = Query(None),
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get audit trail (alias route)"""
+    return get_audit_trail(table_name, operation, user_id, from_date, to_date, page, page_size, db)
 
 
 @router.get("/audit-trail")

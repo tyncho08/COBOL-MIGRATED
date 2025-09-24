@@ -170,6 +170,128 @@ class InvoiceResponse(InvoiceBase):
         from_attributes = True
 
 
+# Sales Invoice Schemas
+class SalesInvoiceBase(BaseModel):
+    customer_id: int
+    invoice_date: Optional[datetime] = None
+    invoice_type: str = Field(default="INVOICE")
+    customer_reference: Optional[str] = Field(None, max_length=30)
+    order_number: Optional[str] = Field(None, max_length=20)
+    delivery_note: Optional[str] = Field(None, max_length=20)
+    delivery_name: Optional[str] = Field(None, max_length=60)
+    delivery_address1: Optional[str] = Field(None, max_length=60)
+    delivery_address2: Optional[str] = Field(None, max_length=60)
+    delivery_address3: Optional[str] = Field(None, max_length=60)
+    delivery_postcode: Optional[str] = Field(None, max_length=10)
+    notes: Optional[str] = Field(None, max_length=500)
+
+
+class SalesInvoiceCreate(SalesInvoiceBase):
+    lines: List[InvoiceLineCreate]
+    header_discount_pct: Optional[PyDecimal] = Field(default=PyDecimal("0.00"))
+    extra_charges: Optional[PyDecimal] = Field(default=PyDecimal("0.00"))
+    shipping_charge: Optional[PyDecimal] = Field(default=PyDecimal("0.00"))
+    cash_sale: bool = Field(default=False)
+
+
+class SalesInvoiceUpdate(BaseModel):
+    customer_reference: Optional[str] = None
+    delivery_name: Optional[str] = None
+    delivery_address1: Optional[str] = None
+    delivery_address2: Optional[str] = None
+    delivery_address3: Optional[str] = None
+    delivery_postcode: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class SalesInvoiceResponse(SalesInvoiceBase):
+    id: int
+    invoice_number: str
+    customer_code: str
+    customer_name: str
+    currency_code: str
+    exchange_rate: PyDecimal
+    payment_terms: int
+    due_date: datetime
+    settlement_discount: PyDecimal
+    settlement_days: int
+    goods_total: PyDecimal
+    discount_total: PyDecimal
+    net_total: PyDecimal
+    vat_total: PyDecimal
+    gross_total: PyDecimal
+    amount_paid: PyDecimal
+    balance: PyDecimal
+    is_paid: bool
+    is_posted: bool
+    is_reversed: bool
+    posted_date: Optional[datetime]
+    reversal_reason: Optional[str]
+    period_number: Optional[int]
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+# Customer Payment Schemas
+class PaymentAllocationCreate(BaseModel):
+    invoice_id: int
+    allocated_amount: PyDecimal
+    discount_taken: Optional[PyDecimal] = Field(default=PyDecimal("0.00"))
+    
+    @field_validator('allocated_amount', 'discount_taken', mode='before')
+    @classmethod
+    def validate_decimal(cls, v):
+        if v is not None:
+            return PyDecimal(str(v))
+        return v
+
+
+class CustomerPaymentBase(BaseModel):
+    customer_id: int
+    payment_date: Optional[datetime] = None
+    payment_method: str = Field(..., max_length=20)
+    payment_amount: PyDecimal
+    reference: Optional[str] = Field(None, max_length=30)
+    bank_reference: Optional[str] = Field(None, max_length=30)
+    notes: Optional[str] = Field(None, max_length=500)
+    
+    @field_validator('payment_amount', mode='before')
+    @classmethod
+    def validate_decimal(cls, v):
+        if v is not None:
+            return PyDecimal(str(v))
+        return v
+
+
+class CustomerPaymentCreate(CustomerPaymentBase):
+    pass
+
+
+class CustomerPaymentUpdate(BaseModel):
+    reference: Optional[str] = None
+    bank_reference: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CustomerPaymentResponse(CustomerPaymentBase):
+    id: int
+    payment_number: str
+    customer_code: str
+    currency_code: str
+    allocated_amount: PyDecimal
+    unallocated_amount: PyDecimal
+    is_allocated: bool
+    is_reversed: bool
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
 # Order Schemas
 class OrderLineCreate(BaseModel):
     stock_code: Optional[str] = Field(None, max_length=13)

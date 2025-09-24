@@ -3,8 +3,8 @@ Payment Service
 Implementation of payment processing from COBOL sl100, sl110
 """
 from decimal import Decimal
-from datetime import datetime
-from typing import List, Dict
+from datetime import datetime, date
+from typing import List, Dict, Optional, Any
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
@@ -330,4 +330,269 @@ class PaymentService:
             "payment_number": payment.payment_number,
             "status": "REVERSED",
             "reason": reason
+        }
+    
+    def list_payments(
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        customer_id: Optional[int] = None,
+        payment_method: Optional[str] = None,
+        from_date: Optional[date] = None,
+        to_date: Optional[date] = None,
+        is_allocated: Optional[bool] = None
+    ) -> List[CustomerPayment]:
+        """List customer payments with filtering and pagination"""
+        query = self.db.query(CustomerPayment)
+        
+        # Apply filters
+        if customer_id:
+            query = query.filter(CustomerPayment.customer_id == customer_id)
+        
+        if payment_method:
+            query = query.filter(CustomerPayment.payment_method == payment_method)
+        
+        if from_date:
+            query = query.filter(CustomerPayment.payment_date >= from_date)
+        
+        if to_date:
+            query = query.filter(CustomerPayment.payment_date <= to_date)
+        
+        if is_allocated is not None:
+            query = query.filter(CustomerPayment.is_allocated == is_allocated)
+        
+        # Apply pagination and return results
+        return query.order_by(CustomerPayment.payment_date.desc())\
+                    .offset(skip)\
+                    .limit(limit)\
+                    .all()
+    
+    def get_payment(self, payment_id: int) -> Optional[CustomerPayment]:
+        """Get payment by ID"""
+        return self.db.query(CustomerPayment).filter(CustomerPayment.id == payment_id).first()
+    
+    def update_payment(self, payment_id: int, payment_data, user_id: int) -> CustomerPayment:
+        """Update payment"""
+        payment = self.get_payment(payment_id)
+        if not payment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Payment not found"
+            )
+        
+        # Update payment fields
+        for field, value in payment_data.dict(exclude_unset=True).items():
+            setattr(payment, field, value)
+        
+        payment.updated_by = str(user_id)
+        payment.updated_at = datetime.now()
+        
+        self.db.commit()
+        self.db.refresh(payment)
+        
+        return payment
+    
+    def remove_allocation(self, payment_id: int, allocation_id: int, user_id: int) -> Dict[str, Any]:
+        """Remove payment allocation"""
+        allocation = self.db.query(PaymentAllocation).filter(
+            PaymentAllocation.id == allocation_id,
+            PaymentAllocation.payment_id == payment_id
+        ).first()
+        
+        if not allocation:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Allocation not found"
+            )
+        
+        # Update invoice
+        invoice = self.db.query(SalesInvoice).filter_by(id=allocation.invoice_id).first()
+        if invoice:
+            invoice.amount_paid -= (allocation.allocated_amount + allocation.discount_taken)
+            invoice.balance = invoice.gross_total - invoice.amount_paid
+            invoice.is_paid = False
+        
+        # Update payment
+        payment = self.db.query(CustomerPayment).filter_by(id=payment_id).first()
+        if payment:
+            payment.allocated_amount -= allocation.allocated_amount
+            payment.unallocated_amount = payment.payment_amount - payment.allocated_amount
+            payment.is_allocated = False
+        
+        # Delete allocation
+        self.db.delete(allocation)
+        self.db.commit()
+        
+        return {"message": "Allocation removed successfully", "allocation_id": allocation_id}
+    
+    def get_allocations(self, payment_id: int) -> List[PaymentAllocation]:
+        """Get payment allocations"""
+        return self.db.query(PaymentAllocation).filter(
+            PaymentAllocation.payment_id == payment_id
+        ).all()
+    
+    def search_payments(
+        self,
+        customer_code: Optional[str] = None,
+        payment_number: Optional[str] = None,
+        reference: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> Dict[str, Any]:
+        """Search customer payments"""
+        query = self.db.query(CustomerPayment)
+        
+        if customer_code:
+            query = query.filter(CustomerPayment.customer_code.ilike(f"%{customer_code}%"))
+        
+        if payment_number:
+            query = query.filter(CustomerPayment.payment_number.ilike(f"%{payment_number}%"))
+        
+        if reference:
+            query = query.filter(CustomerPayment.reference.ilike(f"%{reference}%"))
+        
+        total_count = query.count()
+        
+        payments = query.order_by(CustomerPayment.payment_date.desc())\
+                        .offset((page - 1) * page_size)\
+                        .limit(page_size)\
+                        .all()
+        
+        return {
+            "payments": payments,
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size
+        }
+    
+    def get_statistics(
+        self, 
+        from_date: Optional[date], 
+        to_date: Optional[date], 
+        customer_id: Optional[int],
+        payment_method: Optional[str]
+    ) -> Dict[str, Any]:
+        """Get payment statistics"""
+        query = self.db.query(CustomerPayment)
+        
+        if from_date:
+            query = query.filter(CustomerPayment.payment_date >= from_date)
+        
+        if to_date:
+            query = query.filter(CustomerPayment.payment_date <= to_date)
+        
+        if customer_id:
+            query = query.filter(CustomerPayment.customer_id == customer_id)
+        
+        if payment_method:
+            query = query.filter(CustomerPayment.payment_method == payment_method)
+        
+        from sqlalchemy import func
+        
+        stats = query.with_entities(
+            func.count(CustomerPayment.id).label('total_payments'),
+            func.sum(CustomerPayment.payment_amount).label('total_amount'),
+            func.sum(CustomerPayment.allocated_amount).label('allocated_amount'),
+            func.sum(CustomerPayment.unallocated_amount).label('unallocated_amount')
+        ).first()
+        
+        return {
+            "total_payments": stats.total_payments or 0,
+            "total_amount": float(stats.total_amount or 0),
+            "allocated_amount": float(stats.allocated_amount or 0),
+            "unallocated_amount": float(stats.unallocated_amount or 0),
+            "average_payment_value": float(stats.total_amount or 0) / max(stats.total_payments or 1, 1)
+        }
+    
+    def get_unallocated_payments(self, customer_id: Optional[int] = None) -> List[CustomerPayment]:
+        """Get unallocated payments"""
+        query = self.db.query(CustomerPayment).filter(
+            CustomerPayment.is_allocated == False,
+            CustomerPayment.unallocated_amount > 0
+        )
+        
+        if customer_id:
+            query = query.filter(CustomerPayment.customer_id == customer_id)
+        
+        return query.order_by(CustomerPayment.payment_date).all()
+    
+    def auto_allocate_payments(self, customer_id: Optional[int], user_id: int) -> Dict[str, Any]:
+        """Auto-allocate payments to oldest invoices"""
+        # Get unallocated payments
+        payments = self.get_unallocated_payments(customer_id)
+        
+        results = {
+            "payments_processed": 0,
+            "invoices_paid": 0,
+            "total_allocated": Decimal("0.00")
+        }
+        
+        for payment in payments:
+            # Get unpaid invoices for customer
+            invoices = self.db.query(SalesInvoice).filter(
+                SalesInvoice.customer_id == payment.customer_id,
+                SalesInvoice.is_paid == False,
+                SalesInvoice.balance > 0
+            ).order_by(SalesInvoice.invoice_date).all()
+            
+            allocations = []
+            remaining = payment.unallocated_amount
+            
+            for invoice in invoices:
+                if remaining <= 0:
+                    break
+                
+                allocation_amount = min(remaining, invoice.balance)
+                allocations.append(PaymentAllocationCreate(
+                    invoice_id=invoice.id,
+                    allocated_amount=allocation_amount,
+                    discount_taken=Decimal("0.00")
+                ))
+                
+                remaining -= allocation_amount
+            
+            if allocations:
+                result = self.allocate_payment(payment.id, allocations, user_id)
+                results["payments_processed"] += 1
+                results["invoices_paid"] += len(result["allocations"])
+                results["total_allocated"] += result["total_allocated"]
+        
+        return results
+    
+    def get_cash_receipts_journal(self, from_date: date, to_date: date) -> Dict[str, Any]:
+        """Get cash receipts journal report"""
+        payments = self.db.query(CustomerPayment).filter(
+            CustomerPayment.payment_date >= from_date,
+            CustomerPayment.payment_date <= to_date,
+            CustomerPayment.is_reversed == False
+        ).order_by(CustomerPayment.payment_date, CustomerPayment.payment_number).all()
+        
+        journal_entries = []
+        total_amount = Decimal("0.00")
+        
+        for payment in payments:
+            # Get customer details
+            customer = self.db.query(Customer).filter_by(id=payment.customer_id).first()
+            
+            journal_entries.append({
+                "payment_date": payment.payment_date.isoformat(),
+                "payment_number": payment.payment_number,
+                "customer_code": payment.customer_code,
+                "customer_name": customer.customer_name if customer else "",
+                "payment_method": payment.payment_method,
+                "reference": payment.reference,
+                "payment_amount": float(payment.payment_amount),
+                "allocated_amount": float(payment.allocated_amount),
+                "unallocated_amount": float(payment.unallocated_amount)
+            })
+            
+            total_amount += payment.payment_amount
+        
+        return {
+            "from_date": from_date.isoformat(),
+            "to_date": to_date.isoformat(),
+            "journal_entries": journal_entries,
+            "total_count": len(journal_entries),
+            "total_amount": float(total_amount)
         }

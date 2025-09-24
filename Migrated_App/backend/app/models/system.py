@@ -96,33 +96,40 @@ class User(Base):
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     
     # Relationships
-    audit_trails = relationship("AuditTrail", back_populates="user")
+    # audit_trails = relationship("AuditTrail", back_populates="user")  # Removed - no FK in actual DB
 
 
 class AuditTrail(Base):
-    """Comprehensive audit trail - critical ACAS feature"""
+    """Comprehensive audit trail - updated to match actual database"""
     __tablename__ = "audit_trail"
     
     id = Column(Integer, primary_key=True, index=True)
-    table_name = Column(String(50), nullable=False, index=True)
-    record_id = Column(String(50), nullable=False, index=True)
-    operation_type = Column(String(10), nullable=False)  # INSERT, UPDATE, DELETE
-    user_id = Column(Integer, ForeignKey("users.id"))
+    table_name = Column(String(30), nullable=False, index=True)
+    record_id = Column(String(30), nullable=False, index=True)
+    action = Column(String(10), nullable=False)  # Column is called 'action' not 'operation_type'
+    old_values = Column(String)  # Text column, not JSON
+    new_values = Column(String)  # Text column, not JSON
+    user_id = Column(Integer, nullable=False)  # No FK in actual table
     timestamp = Column(DateTime, default=func.now(), index=True)
     
-    # Change tracking
-    before_image = Column(JSON)
-    after_image = Column(JSON)
-    changed_fields = Column(JSON)
+    # Add properties for compatibility
+    @property
+    def operation(self):
+        return self.action
     
-    # Session info
-    session_id = Column(String(50))
-    ip_address = Column(String(45))
-    user_agent = Column(String(200))
-    application_version = Column(String(20))
+    @property
+    def created_at(self):
+        return self.timestamp
     
-    # Relationships
-    user = relationship("User", back_populates="audit_trails")
+    @property
+    def before_data(self):
+        # Parse old_values if needed
+        return self.old_values
+    
+    @property 
+    def after_data(self):
+        # Parse new_values if needed
+        return self.new_values
 
 
 class CompanyPeriod(Base):

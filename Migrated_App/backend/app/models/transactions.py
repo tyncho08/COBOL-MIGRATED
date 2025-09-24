@@ -137,76 +137,124 @@ class SalesOrderLine(Base):
 
 
 class SalesInvoice(Base):
-    """Sales Invoice Header"""
+    """Sales Invoice Header - Updated to match actual database schema"""
     __tablename__ = "sales_invoices"
     
     id = Column(Integer, primary_key=True)
-    invoice_number = Column(String(20), unique=True, nullable=False, index=True)
-    invoice_date = Column(DateTime, nullable=False, default=func.now())
-    invoice_type = Column(Enum(InvoiceType), default=InvoiceType.INVOICE)
-    
-    # Customer
+    invoice_no = Column(String(15), unique=True, nullable=False, index=True)
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
-    customer_code = Column(String(7), nullable=False)
-    customer_name = Column(String(60), nullable=False)
+    order_id = Column(Integer, ForeignKey("sales_orders.id"))
+    invoice_date = Column(DateTime, nullable=False, default=func.now())
+    due_date = Column(DateTime, nullable=False)
     
-    # Delivery Address (captured at invoice time)
-    delivery_name = Column(String(60))
-    delivery_address1 = Column(String(60))
-    delivery_address2 = Column(String(60))
-    delivery_address3 = Column(String(60))
-    delivery_postcode = Column(String(10))
+    # Addresses
+    bill_to_address = Column(String)
+    ship_to_address = Column(String)
     
-    # References
-    customer_reference = Column(String(30))
-    order_number = Column(String(20))
-    delivery_note = Column(String(20))
-    
-    # Financial
-    currency_code = Column(String(3), default="USD")
-    exchange_rate = Column(ExchangeRate(), default=1.000000)
-    
-    # Terms
-    payment_terms = Column(Integer, default=30)
-    due_date = Column(DateTime)
-    settlement_discount = Column(Percentage(), default=0.00)
-    settlement_days = Column(Integer, default=0)
-    
-    # Totals
-    goods_total = Column(CurrencyAmount(), nullable=False)
-    discount_total = Column(CurrencyAmount(), default=0.00)
-    net_total = Column(CurrencyAmount(), nullable=False)
-    vat_total = Column(CurrencyAmount(), default=0.00)
-    gross_total = Column(CurrencyAmount(), nullable=False)
-    
-    # Payment Status
+    # Status and amounts - matching actual DB columns
+    invoice_status = Column(String(1), default='O')  # O=Open, P=Paid, etc.
+    subtotal = Column(CurrencyAmount(), default=0.00)
+    tax_amount = Column(CurrencyAmount(), default=0.00)
+    total_amount = Column(CurrencyAmount(), default=0.00)
     amount_paid = Column(CurrencyAmount(), default=0.00)
-    balance = Column(CurrencyAmount())
-    is_paid = Column(Boolean, default=False)
+    balance_due = Column(CurrencyAmount(), default=0.00)
     
-    # GL Posting
-    period_number = Column(Integer)
-    gl_posted = Column(Boolean, default=False)
-    gl_batch_number = Column(String(20))
-    
-    # Status
-    invoice_status = Column(Enum(TransactionStatus), default=TransactionStatus.POSTED)
-    
-    # Print/Export
-    print_count = Column(Integer, default=0)
-    is_exported = Column(Boolean, default=False)
-    
-    # Notes
-    notes = Column(String(500))
+    # Other fields
+    terms = Column(String(50))
+    reference = Column(String(30))
     
     # Audit
+    created_by = Column(Integer)
     created_at = Column(DateTime, default=func.now())
+    updated_by = Column(Integer)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
-    created_by = Column(String(20))
-    updated_by = Column(String(20))
+    
+    # Add properties to maintain compatibility with existing code
+    @property
+    def invoice_number(self):
+        return self.invoice_no
+    
+    @property
+    def gross_total(self):
+        return self.total_amount
+    
+    @property
+    def balance(self):
+        return self.balance_due
+    
+    @property
+    def is_paid(self):
+        return self.invoice_status == 'P'
+    
+    @property
+    def customer_code(self):
+        # Will be fetched from relationship
+        return self.customer.customer_code if self.customer else None
+    
+    @property
+    def customer_name(self):
+        # Will be fetched from relationship
+        return self.customer.customer_name if self.customer else None
+    
+    @property
+    def currency_code(self):
+        return self.customer.currency_code if self.customer else "USD"
+    
+    @property
+    def exchange_rate(self):
+        return 1.0  # Default for now
+    
+    @property
+    def payment_terms(self):
+        return self.customer.payment_terms if self.customer else 30
+    
+    @property
+    def settlement_discount(self):
+        return self.customer.settlement_discount if self.customer else 0.0
+    
+    @property
+    def settlement_days(self):
+        return self.customer.settlement_days if self.customer else 0
+    
+    @property
+    def is_posted(self):
+        return True  # For compatibility
+    
+    @property
+    def is_reversed(self):
+        return self.invoice_status == 'R'
+    
+    @property
+    def posted_date(self):
+        return self.created_at
+    
+    @property
+    def reversal_reason(self):
+        return None
+    
+    @property
+    def period_number(self):
+        return None
+    
+    @property
+    def net_total(self):
+        return self.subtotal
+    
+    @property
+    def vat_total(self):
+        return self.tax_amount
+    
+    @property 
+    def goods_total(self):
+        return self.subtotal
+    
+    @property
+    def discount_total(self):
+        return 0.0
     
     # Relationships
     customer = relationship("Customer", back_populates="invoices")
+    order = relationship("SalesOrder")
     invoice_lines = relationship("SalesInvoiceLine", back_populates="invoice", cascade="all, delete-orphan")
     payments = relationship("PaymentAllocation", back_populates="invoice")
 

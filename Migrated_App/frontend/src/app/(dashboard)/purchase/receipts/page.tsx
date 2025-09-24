@@ -96,7 +96,7 @@ export default function GoodsReceiptsPage() {
       header: 'Total Qty',
       cell: ({ row }) => {
         const quantity = row.getValue('total_quantity') as number
-        return quantity.toLocaleString()
+        return quantity ? quantity.toLocaleString() : '0'
       },
     },
     {
@@ -107,7 +107,7 @@ export default function GoodsReceiptsPage() {
         const total = row.original.total_quantity
         return (
           <span className={received < total ? 'text-orange-600' : 'text-green-600'}>
-            {received.toLocaleString()}
+            {received ? received.toLocaleString() : '0'}
           </span>
         )
       },
@@ -119,7 +119,7 @@ export default function GoodsReceiptsPage() {
         const outstanding = row.getValue('outstanding_quantity') as number
         return (
           <span className={outstanding > 0 ? 'text-red-600 font-semibold' : ''}>
-            {outstanding.toLocaleString()}
+            {outstanding ? outstanding.toLocaleString() : '0'}
           </span>
         )
       },

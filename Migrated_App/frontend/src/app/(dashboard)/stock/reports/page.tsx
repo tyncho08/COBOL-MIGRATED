@@ -20,6 +20,7 @@ import {
   ExclamationTriangleIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { apiRequest } from '@/lib/utils/api'
 
 // Types
 interface StockReport {
@@ -184,7 +185,14 @@ export default function StockReportsPage() {
 
   const { data: stockReports, isLoading } = useQuery({
     queryKey: ['stock-reports'],
-    queryFn: () => Promise.resolve(mockStockReports),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/stock/reports')
+      if (!response.ok) {
+        throw new Error(`Failed to fetch stock reports: ${response.statusText}`)
+      }
+      const result = await response.json()
+      return result.data || []
+    }
   })
 
   const columns: ColumnDef<StockReport>[] = [

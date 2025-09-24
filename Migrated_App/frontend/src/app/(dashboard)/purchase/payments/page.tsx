@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { DataTable } from '@/components/business/data-table'
 import { PageHeader } from '@/components/business/page-header'
 import { FormBuilder, FormField } from '@/components/business/form-builder'
+import { apiRequest } from '@/lib/utils/api'
 import { 
   PlusIcon, 
   EyeIcon, 
@@ -52,79 +53,6 @@ const supplierPaymentSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockSupplierPayments: SupplierPayment[] = [
-  {
-    id: 1,
-    payment_number: 'PAY001234',
-    payment_date: '2024-01-15',
-    supplier_id: 1,
-    supplier_code: 'SUPP001',
-    supplier_name: 'ABC Supplies Ltd',
-    payment_method: 'BANK_TRANSFER',
-    reference: 'FT-2024-001',
-    payment_amount: 3000.00,
-    allocated_amount: 3000.00,
-    unallocated_amount: 0.00,
-    bank_account: 'MAIN',
-    is_allocated: true,
-    is_reversed: false,
-    gl_posted: true,
-  },
-  {
-    id: 2,
-    payment_number: 'PAY001235',
-    payment_date: '2024-01-16',
-    supplier_id: 2,
-    supplier_code: 'SUPP002',
-    supplier_name: 'Tech Components Inc',
-    payment_method: 'CHEQUE',
-    reference: 'CHQ-123456',
-    payment_amount: 1440.00,
-    allocated_amount: 1440.00,
-    unallocated_amount: 0.00,
-    bank_account: 'MAIN',
-    cheque_number: '123456',
-    is_allocated: true,
-    is_reversed: false,
-    gl_posted: true,
-  },
-  {
-    id: 3,
-    payment_number: 'PAY001236',
-    payment_date: '2024-01-17',
-    supplier_id: 1,
-    supplier_code: 'SUPP001',
-    supplier_name: 'ABC Supplies Ltd',
-    payment_method: 'BANK_TRANSFER',
-    reference: 'FT-2024-002',
-    payment_amount: 500.00,
-    allocated_amount: 0.00,
-    unallocated_amount: 500.00,
-    bank_account: 'MAIN',
-    is_allocated: false,
-    is_reversed: false,
-    gl_posted: true,
-    notes: 'Payment on account',
-  },
-  {
-    id: 4,
-    payment_number: 'PAY001237',
-    payment_date: '2024-01-18',
-    supplier_id: 3,
-    supplier_code: 'SUPP003',
-    supplier_name: 'Office Supplies Co',
-    payment_method: 'DIRECT_DEBIT',
-    reference: 'DD-2024-001',
-    payment_amount: 240.00,
-    allocated_amount: 240.00,
-    unallocated_amount: 0.00,
-    bank_account: 'MAIN',
-    is_allocated: true,
-    is_reversed: false,
-    gl_posted: false,
-  },
-]
 
 const getPaymentMethodBadge = (method: string) => {
   switch (method) {
@@ -161,7 +89,14 @@ export default function SupplierPaymentsPage() {
 
   const { data: supplierPayments, isLoading } = useQuery({
     queryKey: ['supplier-payments'],
-    queryFn: () => Promise.resolve(mockSupplierPayments),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/purchase/payments')
+      if (!response.ok) {
+        throw new Error('Failed to fetch supplier payments')
+      }
+      const result = await response.json()
+      return result.data || []
+    },
   })
 
   const columns: ColumnDef<SupplierPayment>[] = [
@@ -288,11 +223,7 @@ export default function SupplierPaymentsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch(`/api/v1/purchase/payments/${payment.id}/view`, {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest(`/api/v1/purchase/payments/${payment.id}/view`)
                   const details = await response.json()
                   
                   const modal = document.createElement('div')
@@ -343,11 +274,7 @@ export default function SupplierPaymentsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch(`/api/v1/purchase/payments/${payment.id}/allocations`, {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest(`/api/v1/purchase/payments/${payment.id}/allocations`)
                   const allocations = await response.json()
                   
                   const modal = document.createElement('div')
@@ -396,12 +323,8 @@ export default function SupplierPaymentsPage() {
                 onClick={async () => {
                   if (confirm(`Are you sure you want to reverse payment ${payment.payment_number}?`)) {
                     try {
-                      const response = await fetch(`/api/v1/purchase/payments/${payment.id}/reverse`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
+                      const response = await apiRequest(`/api/v1/purchase/payments/${payment.id}/reverse`, {
+                        method: 'POST'
                       })
                       if (response.ok) {
                         alert('Payment reversed successfully')
@@ -526,11 +449,7 @@ export default function SupplierPaymentsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/purchase/payments/journal', {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest('/api/v1/purchase/payments/journal')
                   const data = await response.json()
                   const reportWindow = window.open('', '_blank')
                   if (reportWindow) {
@@ -565,12 +484,8 @@ export default function SupplierPaymentsPage() {
               onClick={async () => {
                 if (confirm('Auto-allocate all unallocated supplier payments to outstanding invoices?')) {
                   try {
-                    const response = await fetch('/api/v1/purchase/payments/auto-allocate', {
+                    const response = await apiRequest('/api/v1/purchase/payments/auto-allocate', {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                      },
                       body: JSON.stringify([])
                     })
                     if (response.ok) {

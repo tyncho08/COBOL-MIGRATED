@@ -17,6 +17,7 @@ import {
   CalendarIcon
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { apiRequest } from '@/lib/utils/api'
 
 // Types
 interface Customer {
@@ -54,61 +55,6 @@ const statementRequestSchema = z.object({
   format: z.string(),
 })
 
-// Mock data
-const mockCustomers: Customer[] = [
-  {
-    id: 1,
-    customer_code: 'CUST001',
-    customer_name: 'ABC Corporation',
-    contact_person: 'John Smith',
-    email: 'john@abc-corp.com',
-    phone: '555-0123',
-    balance: 1500.00,
-    credit_limit: 10000.00,
-    payment_terms: '30 DAYS',
-    is_active: true,
-    on_hold: false,
-  },
-  {
-    id: 2,
-    customer_code: 'CUST002',
-    customer_name: 'XYZ Ltd',
-    contact_person: 'Jane Doe',
-    email: 'jane@xyz-ltd.com',
-    phone: '555-0456',
-    balance: 0.00,
-    credit_limit: 5000.00,
-    payment_terms: '30 DAYS',
-    is_active: true,
-    on_hold: false,
-  },
-  {
-    id: 3,
-    customer_code: 'CUST003',
-    customer_name: 'Tech Solutions Inc',
-    contact_person: 'Bob Johnson',
-    email: 'bob@techsolutions.com',
-    phone: '555-0789',
-    balance: -600.00, // Credit balance
-    credit_limit: 15000.00,
-    payment_terms: '60 DAYS',
-    is_active: true,
-    on_hold: false,
-  },
-  {
-    id: 4,
-    customer_code: 'CUST004',
-    customer_name: 'Slow Payer Ltd',
-    contact_person: 'Mike Wilson',
-    email: 'mike@slowpayer.com',
-    phone: '555-0999',
-    balance: 8500.00,
-    credit_limit: 5000.00,
-    payment_terms: '30 DAYS',
-    is_active: true,
-    on_hold: true,
-  },
-]
 
 const getBalanceBadge = (balance: number, creditLimit: number, onHold: boolean) => {
   if (onHold) {
@@ -134,48 +80,31 @@ export default function CustomerStatementsPage() {
 
   const { data: customers, isLoading } = useQuery({
     queryKey: ['customers-for-statements'],
-    queryFn: () => Promise.resolve(mockCustomers),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/master/customers')
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers')
+      }
+      const result = await response.json()
+      // Extract the data array from the response
+      return result.data || []
+    },
   })
 
-  // Mock statement data
-  const mockStatementEntries: StatementEntry[] = [
-    {
-      date: '2024-01-01',
-      reference: 'B/FWD',
-      description: 'Balance brought forward',
-      debit: 0,
-      credit: 0,
-      balance: 500.00,
-      type: 'BALANCE'
+  // Fetch statement entries for selected customer
+  const { data: statementEntries } = useQuery({
+    queryKey: ['statement-entries', selectedCustomer?.customer_code],
+    queryFn: async () => {
+      if (!selectedCustomer?.customer_code) return []
+      
+      const response = await apiRequest(`/api/v1/sales/statements/${selectedCustomer.customer_code}/entries`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch statement entries')
+      }
+      return response.json()
     },
-    {
-      date: '2024-01-05',
-      reference: 'INV001234',
-      description: 'Sales Invoice',
-      debit: 3000.00,
-      credit: 0,
-      balance: 3500.00,
-      type: 'INVOICE'
-    },
-    {
-      date: '2024-01-15',
-      reference: 'PAY001234',
-      description: 'Payment received',
-      debit: 0,
-      credit: 1500.00,
-      balance: 2000.00,
-      type: 'PAYMENT'
-    },
-    {
-      date: '2024-01-20',
-      reference: 'CN001001',
-      description: 'Credit note',
-      debit: 0,
-      credit: 500.00,
-      balance: 1500.00,
-      type: 'CREDIT'
-    },
-  ]
+    enabled: !!selectedCustomer?.customer_code,
+  })
 
   const columns: ColumnDef<Customer>[] = [
     {
@@ -260,12 +189,8 @@ export default function CustomerStatementsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/sales/statements/generate', {
+                  const response = await apiRequest('/api/v1/sales/statements/generate', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify({ 
                       customer_code: customer.customer_code,
                       format: 'pdf'
@@ -292,12 +217,8 @@ export default function CustomerStatementsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/sales/statements/email', {
+                  const response = await apiRequest('/api/v1/sales/statements/email', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify({ 
                       customer_code: customer.customer_code,
                       email: customer.email
@@ -461,11 +382,7 @@ export default function CustomerStatementsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/master/customers/aged-debtors', {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest('/api/v1/master/customers/aged-debtors')
                   const data = await response.json()
                   const reportWindow = window.open('', '_blank')
                   if (reportWindow) {
@@ -569,7 +486,7 @@ export default function CustomerStatementsPage() {
               <h4 className="font-medium mb-4">Account Activity</h4>
               <DataTable
                 columns={statementColumns}
-                data={mockStatementEntries}
+                data={statementEntries || []}
                 searchPlaceholder=""
               />
             </div>
@@ -586,12 +503,8 @@ export default function CustomerStatementsPage() {
                     onClick={async () => {
                       if (selectedCustomer?.customer_code) {
                         try {
-                          const response = await fetch('/api/v1/sales/statements/generate', {
+                          const response = await apiRequest('/api/v1/sales/statements/generate', {
                             method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                              'Authorization': `Bearer ${localStorage.getItem('token')}`
-                            },
                             body: JSON.stringify({
                               customer_code: selectedCustomer.customer_code,
                               from_date: formData.from_date || '2024-01-01',
@@ -654,12 +567,8 @@ export default function CustomerStatementsPage() {
                           e.preventDefault()
                           const emailFormData = new FormData(e.target)
                           try {
-                            const response = await fetch('/api/v1/sales/statements/email', {
+                            const response = await apiRequest('/api/v1/sales/statements/email', {
                               method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                              },
                               body: JSON.stringify({
                                 customer_code: selectedCustomer.customer_code,
                                 email: emailFormData.get('email'),

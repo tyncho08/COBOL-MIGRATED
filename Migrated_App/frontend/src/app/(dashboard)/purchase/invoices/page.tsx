@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { DataTable } from '@/components/business/data-table'
 import { PageHeader } from '@/components/business/page-header'
 import { FormBuilder, FormField } from '@/components/business/form-builder'
+import { apiRequest } from '@/lib/utils/api'
 import { 
   PlusIcon, 
   EyeIcon, 
@@ -62,76 +63,6 @@ const purchaseInvoiceSchema = z.object({
   })).min(1, 'At least one invoice line is required'),
 })
 
-// Mock data
-const mockPurchaseInvoices: PurchaseInvoice[] = [
-  {
-    id: 1,
-    invoice_number: 'PIN001234',
-    invoice_date: '2024-01-15',
-    invoice_type: 'INVOICE',
-    supplier_id: 1,
-    supplier_code: 'SUPP001',
-    supplier_name: 'ABC Supplies Ltd',
-    supplier_reference: 'INV-2024-001',
-    order_number: 'PO001234',
-    due_date: '2024-02-14',
-    goods_total: 2500.00,
-    vat_total: 500.00,
-    gross_total: 3000.00,
-    amount_paid: 0.00,
-    balance: 3000.00,
-    is_paid: false,
-    gl_posted: true,
-    invoice_status: 'APPROVED',
-    approval_status: 'APPROVED',
-    approved_by: 'Manager',
-    approved_date: '2024-01-16',
-  },
-  {
-    id: 2,
-    invoice_number: 'PIN001235',
-    invoice_date: '2024-01-16',
-    invoice_type: 'INVOICE',
-    supplier_id: 2,
-    supplier_code: 'SUPP002',
-    supplier_name: 'Tech Components Inc',
-    supplier_reference: 'TC-INV-456',
-    order_number: 'PO001235',
-    due_date: '2024-02-15',
-    goods_total: 1200.00,
-    vat_total: 240.00,
-    gross_total: 1440.00,
-    amount_paid: 1440.00,
-    balance: 0.00,
-    is_paid: true,
-    gl_posted: true,
-    invoice_status: 'PAID',
-    approval_status: 'APPROVED',
-    approved_by: 'Manager',
-    approved_date: '2024-01-16',
-  },
-  {
-    id: 3,
-    invoice_number: 'PIN001236',
-    invoice_date: '2024-01-17',
-    invoice_type: 'CREDIT_NOTE',
-    supplier_id: 3,
-    supplier_code: 'SUPP003',
-    supplier_name: 'Office Supplies Co',
-    supplier_reference: 'CN-001',
-    order_number: 'PO001236',
-    due_date: '2024-02-16',
-    goods_total: -200.00,
-    vat_total: -40.00,
-    gross_total: -240.00,
-    amount_paid: 0.00,
-    balance: -240.00,
-    is_paid: false,
-    gl_posted: false,
-    invoice_status: 'PENDING',
-    approval_status: 'PENDING',
-  },
-]
 
 const getInvoiceTypeBadge = (type: string) => {
   switch (type) {
@@ -185,7 +116,14 @@ export default function PurchaseInvoicesPage() {
 
   const { data: purchaseInvoices, isLoading } = useQuery({
     queryKey: ['purchase-invoices'],
-    queryFn: () => Promise.resolve(mockPurchaseInvoices),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/purchase/invoices')
+      if (!response.ok) {
+        throw new Error('Failed to fetch purchase invoices')
+      }
+      const result = await response.json()
+      return result.data || []
+    },
   })
 
   const columns: ColumnDef<PurchaseInvoice>[] = [
@@ -353,11 +291,7 @@ export default function PurchaseInvoicesPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/print`, {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest(`/api/v1/purchase/invoices/${invoice.id}/print`)
                   if (response.ok) {
                     const blob = await response.blob()
                     const url = window.URL.createObjectURL(blob)
@@ -383,12 +317,8 @@ export default function PurchaseInvoicesPage() {
                 onClick={async () => {
                   if (confirm(`Are you sure you want to approve invoice ${invoice.invoice_number}?`)) {
                     try {
-                      const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/approve`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
+                      const response = await apiRequest(`/api/v1/purchase/invoices/${invoice.id}/approve`, {
+                        method: 'POST'
                       })
                       if (response.ok) {
                         alert('Invoice approved successfully')
@@ -413,12 +343,8 @@ export default function PurchaseInvoicesPage() {
                 onClick={async () => {
                   if (confirm(`Are you sure you want to post invoice ${invoice.invoice_number} to General Ledger?`)) {
                     try {
-                      const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/post-gl`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
+                      const response = await apiRequest(`/api/v1/purchase/invoices/${invoice.id}/post-gl`, {
+                        method: 'POST'
                       })
                       if (response.ok) {
                         alert('Invoice posted to GL successfully')
@@ -443,12 +369,8 @@ export default function PurchaseInvoicesPage() {
                 onClick={async () => {
                   if (confirm(`Are you sure you want to reverse invoice ${invoice.invoice_number}?`)) {
                     try {
-                      const response = await fetch(`/api/v1/purchase/invoices/${invoice.id}/reverse`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
+                      const response = await apiRequest(`/api/v1/purchase/invoices/${invoice.id}/reverse`, {
+                        method: 'POST'
                       })
                       if (response.ok) {
                         alert('Invoice reversed successfully')
@@ -547,11 +469,7 @@ export default function PurchaseInvoicesPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/purchase/invoices/aging-report', {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest('/api/v1/purchase/invoices/aging-report')
                   const data = await response.json()
                   const reportWindow = window.open('', '_blank')
                   if (reportWindow) {
@@ -584,12 +502,8 @@ export default function PurchaseInvoicesPage() {
                 try {
                   // Get selected invoice IDs (would need to implement selection in DataTable)
                   const selectedIds = [1, 2, 3] // Mock for now
-                  const response = await fetch('/api/v1/purchase/invoices/batch-approve', {
+                  const response = await apiRequest('/api/v1/purchase/invoices/batch-approve', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify(selectedIds)
                   })
                   const result = await response.json()

@@ -22,6 +22,7 @@ import {
   LockOpenIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { apiRequest } from '@/lib/utils/api'
 
 // Types
 interface Budget {
@@ -82,87 +83,7 @@ const budgetSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockBudgets: Budget[] = [
-  {
-    id: 1,
-    budget_name: 'Annual Operating Budget 2024',
-    budget_year: 2024,
-    budget_version: 'V1.0',
-    budget_type: 'OPERATING',
-    department: 'ALL',
-    currency_code: 'USD',
-    status: 'APPROVED',
-    created_by: 'Budget Manager',
-    created_date: '2023-12-01T09:00:00Z',
-    approved_by: 'CFO',
-    approved_date: '2023-12-15T16:30:00Z',
-    locked_by: 'CFO',
-    locked_date: '2024-01-01T00:00:00Z',
-    total_revenue: 2500000.00,
-    total_expenses: 2200000.00,
-    net_income: 300000.00,
-    variance_threshold: 5.0,
-    is_active: true,
-    notes: 'Board approved budget for fiscal year 2024',
-  },
-  {
-    id: 2,
-    budget_name: 'Capital Expenditure Budget 2024',
-    budget_year: 2024,
-    budget_version: 'V2.1',
-    budget_type: 'CAPITAL',
-    currency_code: 'USD',
-    status: 'APPROVED',
-    created_by: 'Finance Director',
-    created_date: '2023-11-15T14:20:00Z',
-    approved_by: 'Board',
-    approved_date: '2023-12-20T10:00:00Z',
-    total_revenue: 0.00,
-    total_expenses: 450000.00,
-    net_income: -450000.00,
-    variance_threshold: 10.0,
-    is_active: true,
-    notes: 'Equipment and facility upgrades',
-  },
-  {
-    id: 3,
-    budget_name: 'Q1 2024 Revised Forecast',
-    budget_year: 2024,
-    budget_version: 'V1.2',
-    budget_type: 'FORECAST',
-    department: 'SALES',
-    currency_code: 'USD',
-    status: 'DRAFT',
-    created_by: 'Sales Manager',
-    created_date: '2024-01-15T11:30:00Z',
-    total_revenue: 650000.00,
-    total_expenses: 580000.00,
-    net_income: 70000.00,
-    variance_threshold: 3.0,
-    is_active: false,
-    notes: 'Quarterly forecast revision based on market conditions',
-  },
-  {
-    id: 4,
-    budget_name: 'Department Budget - Marketing',
-    budget_year: 2024,
-    budget_version: 'V1.0',
-    budget_type: 'DEPARTMENTAL',
-    department: 'MARKETING',
-    cost_center: 'MKT001',
-    currency_code: 'USD',
-    status: 'PENDING',
-    created_by: 'Marketing Director',
-    created_date: '2024-01-10T13:45:00Z',
-    total_revenue: 0.00,
-    total_expenses: 180000.00,
-    net_income: -180000.00,
-    variance_threshold: 5.0,
-    is_active: false,
-    notes: 'Annual marketing department budget proposal',
-  },
-]
+// No mock data - using API
 
 const getBudgetTypeBadge = (type: string) => {
   switch (type) {
@@ -209,7 +130,14 @@ export default function BudgetsPage() {
 
   const { data: budgets, isLoading } = useQuery({
     queryKey: ['budgets'],
-    queryFn: () => Promise.resolve(mockBudgets),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/general/budgets')
+      if (!response.ok) {
+        throw new Error(`Failed to fetch budgets: ${response.statusText}`)
+      }
+      const result = await response.json()
+      return result.data || []
+    }
   })
 
   const columns: ColumnDef<Budget>[] = [

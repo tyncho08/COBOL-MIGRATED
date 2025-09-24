@@ -21,6 +21,7 @@ import {
   ClipboardDocumentListIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { apiRequest } from '@/lib/utils/api'
 
 // Types
 interface FinancialReport {
@@ -55,125 +56,7 @@ const reportParametersSchema = z.object({
   consolidate_entities: z.boolean().optional(),
 })
 
-// Mock data
-const mockFinancialReports: FinancialReport[] = [
-  {
-    id: 1,
-    report_type: 'TRIAL_BALANCE',
-    report_name: 'Trial Balance',
-    description: 'Detailed trial balance with account balances',
-    category: 'STATUTORY',
-    last_run: '2024-01-15T16:30:00Z',
-    last_run_by: 'Manager',
-    parameters: 'Period 1-12/2024, Detail Level 3',
-    output_format: 'PDF',
-    is_scheduled: true,
-    schedule_frequency: 'MONTHLY',
-    next_run: '2024-02-15T16:30:00Z',
-    status: 'COMPLETED',
-    period_from: '1',
-    period_to: '12',
-    file_size: '1.5 MB',
-  },
-  {
-    id: 2,
-    report_type: 'BALANCE_SHEET',
-    report_name: 'Balance Sheet',
-    description: 'Statement of financial position',
-    category: 'FINANCIAL_STATEMENTS',
-    last_run: '2024-01-31T18:00:00Z',
-    last_run_by: 'CFO',
-    parameters: 'YTD 2024, With Budget Comparison',
-    output_format: 'EXCEL',
-    is_scheduled: true,
-    schedule_frequency: 'MONTHLY',
-    next_run: '2024-02-29T18:00:00Z',
-    status: 'COMPLETED',
-    period_from: '1',
-    period_to: '1',
-    file_size: '850 KB',
-  },
-  {
-    id: 3,
-    report_type: 'INCOME_STATEMENT',
-    report_name: 'Income Statement',
-    description: 'Profit & Loss statement',
-    category: 'FINANCIAL_STATEMENTS',
-    last_run: '2024-01-31T18:00:00Z',
-    last_run_by: 'CFO',
-    parameters: 'YTD 2024, With Prior Year',
-    output_format: 'PDF',
-    is_scheduled: true,
-    schedule_frequency: 'MONTHLY',
-    next_run: '2024-02-29T18:00:00Z',
-    status: 'COMPLETED',
-    period_from: '1',
-    period_to: '1',
-    file_size: '720 KB',
-  },
-  {
-    id: 4,
-    report_type: 'CASH_FLOW',
-    report_name: 'Cash Flow Statement',
-    description: 'Statement of cash flows',
-    category: 'FINANCIAL_STATEMENTS',
-    last_run: '2024-01-31T18:00:00Z',
-    last_run_by: 'CFO',
-    parameters: 'YTD 2024, Direct Method',
-    output_format: 'PDF',
-    is_scheduled: true,
-    schedule_frequency: 'MONTHLY',
-    next_run: '2024-02-29T18:00:00Z',
-    status: 'COMPLETED',
-    period_from: '1',
-    period_to: '1',
-    file_size: '650 KB',
-  },
-  {
-    id: 5,
-    report_type: 'GENERAL_LEDGER',
-    report_name: 'General Ledger Detail',
-    description: 'Detailed general ledger transactions',
-    category: 'TRANSACTION_REPORTS',
-    last_run: '2024-01-20T14:00:00Z',
-    last_run_by: 'Accountant',
-    parameters: 'All accounts, Period 1/2024',
-    output_format: 'CSV',
-    is_scheduled: false,
-    status: 'COMPLETED',
-    period_from: '1',
-    period_to: '1',
-    file_size: '8.2 MB',
-  },
-  {
-    id: 6,
-    report_type: 'BUDGET_VARIANCE',
-    report_name: 'Budget Variance Analysis',
-    description: 'Actual vs budget variance report',
-    category: 'MANAGEMENT_REPORTS',
-    last_run: '2024-01-25T10:30:00Z',
-    last_run_by: 'Controller',
-    parameters: 'YTD 2024, All departments',
-    output_format: 'EXCEL',
-    is_scheduled: true,
-    schedule_frequency: 'MONTHLY',
-    next_run: '2024-02-25T10:30:00Z',
-    status: 'COMPLETED',
-    period_from: '1',
-    period_to: '1',
-    file_size: '2.1 MB',
-  },
-  {
-    id: 7,
-    report_type: 'AGING_SUMMARY',
-    report_name: 'Account Aging Summary',
-    description: 'AR/AP aging analysis summary',
-    category: 'MANAGEMENT_REPORTS',
-    status: 'RUNNING',
-    output_format: 'PDF',
-    is_scheduled: false,
-  },
-]
+// No mock data - using API
 
 const getReportTypeBadge = (type: string) => {
   switch (type) {
@@ -234,7 +117,14 @@ export default function FinancialReportsPage() {
 
   const { data: financialReports, isLoading } = useQuery({
     queryKey: ['financial-reports'],
-    queryFn: () => Promise.resolve(mockFinancialReports),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/general/reports')
+      if (!response.ok) {
+        throw new Error(`Failed to fetch financial reports: ${response.statusText}`)
+      }
+      const result = await response.json()
+      return result.data || []
+    }
   })
 
   const columns: ColumnDef<FinancialReport>[] = [

@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { DataTable } from '@/components/business/data-table'
 import { PageHeader } from '@/components/business/page-header'
 import { FormBuilder, FormField } from '@/components/business/form-builder'
+import { apiRequest } from '@/lib/utils/api'
 import { 
   PlusIcon, 
   EyeIcon, 
@@ -145,7 +146,14 @@ export default function StockTakesPage() {
 
   const { data: stockTakes, isLoading } = useQuery({
     queryKey: ['stock-takes'],
-    queryFn: () => Promise.resolve(mockStockTakes),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/stock/takes')
+      if (!response.ok) {
+        throw new Error('Failed to fetch stock takes')
+      }
+      const result = await response.json()
+      return result.data || []
+    },
   })
 
   const columns: ColumnDef<StockTake>[] = [
@@ -317,12 +325,8 @@ export default function StockTakesPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/stock/takes/counting-sheets', {
+                  const response = await apiRequest('/api/v1/stock/takes/counting-sheets', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify({ 
                       take_id: take.id,
                       location: take.location || 'ALL' 
@@ -353,12 +357,8 @@ export default function StockTakesPage() {
                 onClick={async () => {
                   if (confirm(`Are you sure you want to post adjustments for stock take ${take.take_number}?`)) {
                     try {
-                      const response = await fetch(`/api/v1/stock/takes/${take.id}/post-adjustments`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
+                      const response = await apiRequest(`/api/v1/stock/takes/${take.id}/post-adjustments`, {
+                        method: 'POST'
                       })
                       if (response.ok) {
                         alert('Stock take adjustments posted successfully')
@@ -485,11 +485,7 @@ export default function StockTakesPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/stock/takes/variance-report', {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest('/api/v1/stock/takes/variance-report')
                   const data = await response.json()
                   const reportWindow = window.open('', '_blank')
                   if (reportWindow) {
@@ -522,12 +518,8 @@ export default function StockTakesPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/stock/takes/counting-sheets', {
+                  const response = await apiRequest('/api/v1/stock/takes/counting-sheets', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify({ location: 'ALL' })
                   })
                   const blob = await response.blob()

@@ -21,6 +21,7 @@ import {
   ArrowPathIcon 
 } from '@heroicons/react/24/outline'
 import { z } from 'zod'
+import { apiRequest } from '@/lib/utils/api'
 
 // Types
 interface GLBatch {
@@ -219,7 +220,14 @@ export default function GLBatchesPage() {
 
   const { data: glBatches, isLoading } = useQuery({
     queryKey: ['gl-batches'],
-    queryFn: () => Promise.resolve(mockGLBatches),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/general/batches')
+      if (!response.ok) {
+        throw new Error(`Failed to fetch GL batches: ${response.statusText}`)
+      }
+      const result = await response.json()
+      return result.data || []
+    }
   })
 
   const columns: ColumnDef<GLBatch>[] = [

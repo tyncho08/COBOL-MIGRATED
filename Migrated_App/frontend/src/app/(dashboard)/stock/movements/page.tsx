@@ -9,6 +9,7 @@ import { Modal } from '@/components/ui/modal'
 import { DataTable } from '@/components/business/data-table'
 import { PageHeader } from '@/components/business/page-header'
 import { FormBuilder, FormField } from '@/components/business/form-builder'
+import { apiRequest } from '@/lib/utils/api'
 import { 
   PlusIcon, 
   EyeIcon, 
@@ -59,88 +60,6 @@ const stockMovementSchema = z.object({
   notes: z.string().optional(),
 })
 
-// Mock data
-const mockStockMovements: StockMovement[] = [
-  {
-    id: 1,
-    movement_number: 'SM001234',
-    movement_date: '2024-01-15',
-    movement_type: 'RECEIPT',
-    stock_id: 1,
-    stock_code: 'ITEM001',
-    description: 'Computer Mouse - Optical',
-    quantity_moved: 50,
-    unit_cost: 15.00,
-    total_value: 750.00,
-    quantity_before: 100,
-    quantity_after: 150,
-    reference: 'GR001234',
-    document_number: 'PO001234',
-    document_type: 'PURCHASE_ORDER',
-    location_to: 'WAREHOUSE-A',
-    reason_code: 'PURCHASE',
-    reason_description: 'Goods received from supplier',
-    created_by: 'John Smith',
-  },
-  {
-    id: 2,
-    movement_number: 'SM001235',
-    movement_date: '2024-01-16',
-    movement_type: 'ISSUE',
-    stock_id: 1,
-    stock_code: 'ITEM001',
-    description: 'Computer Mouse - Optical',
-    quantity_moved: -25,
-    unit_cost: 15.00,
-    total_value: -375.00,
-    quantity_before: 150,
-    quantity_after: 125,
-    reference: 'SO001234',
-    document_number: 'SO001234',
-    document_type: 'SALES_ORDER',
-    location_from: 'WAREHOUSE-A',
-    reason_code: 'SALE',
-    reason_description: 'Issued for sales order',
-    created_by: 'Jane Doe',
-  },
-  {
-    id: 3,
-    movement_number: 'SM001236',
-    movement_date: '2024-01-17',
-    movement_type: 'ADJUSTMENT',
-    stock_id: 2,
-    stock_code: 'ITEM002',
-    description: 'Keyboard - Mechanical',
-    quantity_moved: -2,
-    unit_cost: 75.00,
-    total_value: -150.00,
-    quantity_before: 30,
-    quantity_after: 28,
-    reason_code: 'DAMAGE',
-    reason_description: 'Damaged goods adjustment',
-    created_by: 'Bob Johnson',
-    notes: 'Items damaged during inspection',
-  },
-  {
-    id: 4,
-    movement_number: 'SM001237',
-    movement_date: '2024-01-18',
-    movement_type: 'TRANSFER',
-    stock_id: 3,
-    stock_code: 'ITEM003',
-    description: 'Monitor - 24" LCD',
-    quantity_moved: 10,
-    unit_cost: 200.00,
-    total_value: 2000.00,
-    quantity_before: 20,
-    quantity_after: 20, // Same total, just moved between locations
-    location_from: 'WAREHOUSE-A',
-    location_to: 'WAREHOUSE-B',
-    reason_code: 'TRANSFER',
-    reason_description: 'Stock transfer between warehouses',
-    created_by: 'Alice Wilson',
-  },
-]
 
 const getMovementTypeBadge = (type: string) => {
   switch (type) {
@@ -176,7 +95,14 @@ export default function StockMovementsPage() {
 
   const { data: stockMovements, isLoading } = useQuery({
     queryKey: ['stock-movements'],
-    queryFn: () => Promise.resolve(mockStockMovements),
+    queryFn: async () => {
+      const response = await apiRequest('/api/v1/stock/movements')
+      if (!response.ok) {
+        throw new Error('Failed to fetch stock movements')
+      }
+      const result = await response.json()
+      return result.data || []
+    },
   })
 
   const columns: ColumnDef<StockMovement>[] = [
@@ -310,11 +236,7 @@ export default function StockMovementsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch(`/api/v1/stock/movements/${movement.id}/print`, {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest(`/api/v1/stock/movements/${movement.id}/print`)
                   if (response.ok) {
                     const blob = await response.blob()
                     const url = window.URL.createObjectURL(blob)
@@ -455,11 +377,7 @@ export default function StockMovementsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/stock/movements/report', {
-                    headers: {
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                  })
+                  const response = await apiRequest('/api/v1/stock/movements/report')
                   const data = await response.json()
                   const reportWindow = window.open('', '_blank')
                   if (reportWindow) {
@@ -493,12 +411,8 @@ export default function StockMovementsPage() {
               variant="outline"
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/v1/stock/movements/reconciliation', {
+                  const response = await apiRequest('/api/v1/stock/movements/reconciliation', {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify({})
                   })
                   const result = await response.json()
